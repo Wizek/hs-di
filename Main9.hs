@@ -8,26 +8,26 @@ import Data.Maybe
 
 ($>) = flip ($)
 
-c = 2
-b = inject "c" c + 2
+c i = 2
+b i = i "c" c + 2
 
-d = "2"
-e = inject "d" d ++ "2"
+d i = "2"
+e i = i "d" d ++ "2"
 
-f = (++ "bar")
-g = inject "f" f "foo"
+f i = (++ "bar")
+g i = i "f" f "foo"
 
-i = inject "id" id "foo"
-i2 = inject "id" id ["a"]
+i i = i "id" id "foo"
+i2 i = i "id" id ["a"]
 
 -- type Inject a = String -> Inject a -> a
 
 -- inject :: String -> (String -> a) -> a
 -- inject :: Inject a
 -- inject :: String -> a -> a
-inject label value = case label `Map.lookup` overrides of
-  Just a -> a $> fromDynamic $> fromJust `asTypeOf` value
-  _      -> value
+inject overrides label value = case label `Map.lookup` overrides of
+  Just a -> a $> fromDynamic $> fromJust -- `asTypeOf` value (inject overrides)
+  _      -> value (inject overrides)
 
 overrides = 
   Map.fromList
@@ -41,15 +41,15 @@ overrides =
 main :: IO ()
 main = do
   -- print $ (assemble "b" $> fromDynamic :: Maybe Int)
-  print $ (inject "c" c :: Int)
-  print $ (inject "b" b :: Int)
+  print $ (inject overrides "c" c :: Int)
+  print $ (inject overrides "b" b :: Int)
 
-  print $ (inject "d" d)
-  print $ (inject "e" e)
+  print $ (inject overrides "d" d)
+  print $ (inject overrides "e" e)
 
-  print $ (inject "f" f "a")
-  print $ (inject "g" g)
+  print $ (inject overrides "f" f "a")
+  print $ (inject overrides "g" g)
 
-  print $ (inject "i" i)
-  print $ (inject "i2" i2)
+  print $ (inject overrides "i" i)
+  print $ (inject overrides "i2" i2)
  
