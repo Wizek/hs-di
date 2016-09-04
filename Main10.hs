@@ -19,7 +19,7 @@
   
   [x] TODO: make multiple argumetns work
   [x] TODO: Simplify Deps
-  [ ] TODO: reorder arguments of override
+  [x] TODO: reorder arguments of override
   [ ] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 -}
 
@@ -63,15 +63,15 @@ main = do
 
   section "override fn"
 
-  override (Dep "a" []) "a" "b" `shouldBe` Dep "b" []
-  override (Dep "a" []) "a" "c" `shouldBe` Dep "c" []
-  override (Dep "a" []) "b" "c" `shouldBe` Dep "a" []
+  override "a" "b" (Dep "a" []) `shouldBe` Dep "b" []
+  override "a" "c" (Dep "a" []) `shouldBe` Dep "c" []
+  override "b" "c" (Dep "a" []) `shouldBe` Dep "a" []
 
-  override (Dep "b" [Dep "a" []]) "x" "c" `shouldBe` (Dep "b" [Dep "a" []])
-  override (Dep "b" [Dep "a" []]) "b" "c" `shouldBe` (Dep "c" [Dep "a" []])
-  override (Dep "b" [Dep "a" []]) "a" "c" `shouldBe` (Dep "b" [Dep "c" []])
+  override "x" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Dep "a" []])
+  override "b" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "c" [Dep "a" []])
+  override "a" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Dep "c" []])
 
-  override (Dep "b" [Dep "a" [], Dep "a" []]) "a" "c" `shouldBe` (Dep "b" [Dep "c" [], Dep "c" []])
+  override "a" "c" (Dep "b" [Dep "a" [], Dep "a" []]) `shouldBe` (Dep "b" [Dep "c" [], Dep "c" []])
 
 
   section "assemble"
@@ -84,7 +84,7 @@ main = do
   let
     fooDMock = Dep "fooMock" []
     fooMock = 33 
-  $(assemble $ override barD "foo" "fooMock") `shouldBe` 34
+  $(assemble $ override "foo" "fooMock" barD) `shouldBe` 34
 
 
   section "type variable support"
@@ -94,7 +94,7 @@ main = do
   let
     idDMock = Dep "idMock" []
     idMock = (+1) 
-  $(assemble $ override idTestD "id" "idMock") `shouldBe` 4
+  $(assemble $ override "id" "idMock" idTestD) `shouldBe` 4
 
 
   section "module support"

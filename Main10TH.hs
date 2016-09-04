@@ -35,8 +35,7 @@ mapDeps f (Dep n xs) = Dep (f n) (map (mapDeps f) xs)
 -- mapChildren :: (a -> b) -> DepsG a -> DepsG a
 mapChildren f (Dep n xs) = Dep n (f $ map (mapChildren f) xs)
 
-
-override d a b = mapDeps (overrideName a b) d
+override a b d = mapDeps (overrideName a b) d
 
 overrideName a b n | n == a      = b
                    | otherwise   = n
