@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import Data.Dynamic
 import Data.Maybe
 import Main10TH
+import Main10App
 
 ($>) = flip ($)
 
@@ -27,19 +28,12 @@ import Main10TH
 
 -- curry3 = $(curryN 3)
 
-test2 = $(assemble barD)
 
-foo = 1
-
-bar foo = foo + 1
 
 main :: IO ()
 main = do
-  print $(assemble barD)
-
-  -- let 
-  --   fooDMock = 33
-  -- print $(assemble barDMock)
+  putStrLn ""
+  putStrLn "# override fn"
 
   override (Leaf "a") "a" "b" `shouldBe` Leaf "b"
   override (Leaf "a") "a" "c" `shouldBe` Leaf "c"
@@ -51,12 +45,28 @@ main = do
 
   override (Cons "b" [Leaf "a", Leaf "a"]) "a" "c" `shouldBe` (Cons "b" [Leaf "c", Leaf "c"])
 
+  putStrLn ""
+  putStrLn "# assemble"
+  
   $(assemble barD) `shouldBe` 2
+
+  putStrLn ""
+  putStrLn "# mocking"
 
   let
     fooDMock = Leaf "fooMock"
     fooMock = 33 
   $(assemble $ override barD "foo" "fooMock") `shouldBe` 34
+
+
+  putStrLn ""
+  putStrLn "# type variable support"
+  $(assemble $ idTestD) `shouldBe` 3
+
+  let
+    idDMock = Leaf "idMock"
+    idMock = (+1) 
+  $(assemble $ override idTestD "id" "idMock") `shouldBe` 4
 
 shouldBe actual expected | actual == expected = putStrLn $ "OK " ++ show actual
                          | otherwise          = error $ "FAIL " ++ show actual ++ " /= " ++ show expected
