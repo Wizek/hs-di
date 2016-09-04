@@ -15,6 +15,12 @@
   (-) Limited module support, requires re-exporting
     (?) Could it be possible to pass the default dependencies along in `Deps` somehow?
       That could get rid of this issue
+    (+) At least it supports qualified names:
+        *Main> $(assemble $ Dep "Prelude.id" []) 1
+        1
+        *Main> $(assemble $ Dep "Prelude.*" []) 2 3
+        6
+
   (?) How is performance impacted? Does GHC notice `f (g x) (g x)`? 
   
   [x] TODO: make multiple argumetns work
@@ -100,6 +106,11 @@ main = do
   section "module support"
   
   $(assemble $ testModuleD) `shouldBe` 12
+
+
+  section "qualified names"
+  $(assemble $ Dep "Prelude.id" []) 1 `shouldBe` 1
+  $(assemble $ Dep "Prelude.*" []) 2 3 `shouldBe` 6
 
 
 shouldBe = shouldBeF show
