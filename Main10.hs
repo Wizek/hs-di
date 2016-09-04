@@ -17,8 +17,9 @@
       That could get rid of this issue
   (?) How is performance impacted? Does GHC notice `f (g x) (g x)`? 
   
-  [ ] TODO: make multiple argumetns work
+  [x] TODO: make multiple argumetns work
   [ ] TODO: reorder arguments of override
+  [ ] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 -}
 
 {-# LANGUAGE TemplateHaskell #-}
@@ -47,12 +48,15 @@ main = do
   putStrLn ""
   putStrLn "# convertDefsToExp"
 
-  convertDefsToExp (Leaf "a") `shouldBe` (VarE $ mkName "a")
+  -- let ppsB = shouldBeF pprint
+  let ppsB = shouldBeF show
 
-  convertDefsToExp (Cons "a" [Leaf "b"]) `shouldBe`
+  convertDefsToExp (Leaf "a") `ppsB` (VarE $ mkName "a")
+
+  convertDefsToExp (Cons "a" [Leaf "b"]) `ppsB`
     (AppE (VarE $ mkName "a") (VarE $ mkName "b"))
 
-  convertDefsToExp (Cons "a" [Leaf "b", Leaf "c"]) `shouldBe`
+  convertDefsToExp (Cons "a" [Leaf "b", Leaf "c"]) `ppsB`
     (AppE (AppE (VarE $ mkName "a") (VarE $ mkName "b")) (VarE $ mkName "c"))
 
   putStrLn ""
@@ -99,3 +103,6 @@ main = do
 
 shouldBe actual expected | actual == expected = putStrLn $ "OK " ++ show actual
                          | otherwise          = error $ "FAIL " ++ show actual ++ " /= " ++ show expected
+
+shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
+                            | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected

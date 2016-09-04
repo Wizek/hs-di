@@ -9,31 +9,33 @@ import Language.Haskell.TH
 (.>) = flip (.)
 
 assemble t = do
-  -- return $ AppE (VarE $ mkName $ fst t) (let (a,b) = snd t in AppE (VarE $ mkName a) (VarE $ mkName b))
-  -- return $ AppE (VarE $ mkName $ fst t) $(runQ [|(VarE $ mkName $ snd t)|])
-  -- return $ AppE (VarE $ mkName $ fst t) $([|(VarE $ mkName $ snd t)|])
   t $> convertDefsToExp $> return
 
 convertDefsToExp :: Defs -> Exp
-convertDefsToExp = mapDefs (mkName .> VarE) .> convertDefsToExp
+convertDefsToExp = id
+  .> mapDefs (mkName .> VarE)
+  -- .> mapChildren reverse
+  .> convertDefsToExp'
 
+convertDefsToExp' :: DefsG Exp -> Exp
 convertDefsToExp' (Leaf name) = name
--- convertDefsToExp' (Cons name []) = AppE (VarE $ mkName a) (VarE $ mkName b)
-convertDefsToExp' (Cons name (x:xs)) = AppE name (convertDefsToExp' x)
+convertDefsToExp' (Cons name [x]) = AppE name (convertDefsToExp' x)
+convertDefsToExp' (Cons name (x:xs)) = convertDefsToExp' (Cons (AppE name (convertDefsToExp' x)) xs)
 
 data DefsG a = Leaf a | Cons a [DefsG a]
   deriving (Show, Eq)
 
 type Defs = DefsG String
-  -- deriving (Show, Eq)
 
 
 mapDefs :: (a -> b) -> DefsG a -> DefsG b 
 mapDefs f (Leaf n)    = Leaf $ f n
 mapDefs f (Cons n xs) = Cons (f n) (map (mapDefs f) xs)
 
+-- mapChildren :: (a -> b) -> DefsG a -> DefsG a
+mapChildren f (Leaf n)    = Leaf n
+mapChildren f (Cons n xs) = Cons n (f $ map (mapChildren f) xs)
 
--- barDMock = Cons "bar" [fooDMock]
 
 override (Leaf n) a b     = Leaf $ overrideName n a b
 override (Cons n xs) a b  = Cons (overrideName n a b) (map (\x-> override x a b) xs)
