@@ -2,6 +2,21 @@
   In this experiment I am trying to emulate the manual assembly
   of deeply nested and injected dependencies with the help of TH
   and config ADTs
+
+  (+) Supports type variables 
+  (+) Supports values to be injected
+  (+) Supports functions to be injected
+  (++) Supports overriding of arbitrary number and depth of dependencies
+  (+) Theoretically also supports surgically only overriding some subsets of dependencies
+  (++) Compile time type checking (despites strings being used, those too are checked)
+
+  (+) emulates how a human would do DI by hand, and does the hard work automatically
+
+  (-) Limited module support, requires re-exporting
+    (?) Could it be possible to pass the default dependencies along in `Defs` somehow?
+      That could get rid of this issue
+  (?) How is performance impacted? Does GHC notice `f (g x) (g x)`? 
+
 -}
 
 {-# LANGUAGE TemplateHaskell #-}
@@ -45,15 +60,21 @@ main = do
     fooMock = 33 
   $(assemble $ override barD "foo" "fooMock") `shouldBe` 34
 
-
   putStrLn ""
   putStrLn "# type variable support"
+
   $(assemble $ idTestD) `shouldBe` 3
 
   let
     idDMock = Leaf "idMock"
     idMock = (+1) 
   $(assemble $ override idTestD "id" "idMock") `shouldBe` 4
+
+  putStrLn ""
+  putStrLn "# module support"
+  
+  $(assemble $ testModuleD) `shouldBe` 12
+
 
 shouldBe actual expected | actual == expected = putStrLn $ "OK " ++ show actual
                          | otherwise          = error $ "FAIL " ++ show actual ++ " /= " ++ show expected
