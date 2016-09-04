@@ -6,13 +6,13 @@ module Main10App
 import Main10TH
 import Main10TestImport
 
-fooD = Leaf "foo"
+fooD = Dep "foo" []
 foo = 1
 
 barD = Dep "bar" [fooD]
 bar foo = foo + 1
 
-idD = Leaf "id"
+idD = Dep "id" []
 
 idTestD = Dep "idTest" [idD]
 idTest id = id 1 + 2  

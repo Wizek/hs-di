@@ -2,5 +2,5 @@ module Main10TestImport where
 
 import Main10TH
 
-testImportD = Leaf "testImport"
+testImportD = Dep "testImport" []
 testImport = 9

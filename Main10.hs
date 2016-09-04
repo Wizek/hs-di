@@ -43,35 +43,37 @@ main = do
   putStrLn ""
   putStrLn "# mapDeps"
 
-  mapDeps (const "2" ) (Leaf "1") `shouldBe` (Leaf "2")
-  mapDeps (const 2) (Leaf "1") `shouldBe` (Leaf 2)
-  
+  let l x = Dep x []
+
+  mapDeps (const "2" ) (Dep "1" []) `shouldBe` (Dep "2" [])
+  mapDeps (const 2) (Dep "1" []) `shouldBe` (Dep 2 [])
+
   putStrLn ""
   putStrLn "# convertDepsToExp"
 
   -- let ppsB = shouldBeF pprint
   let ppsB = shouldBeF show
 
-  convertDepsToExp (Leaf "a") `ppsB` (VarE $ mkName "a")
+  convertDepsToExp (Dep "a" []) `ppsB` (VarE $ mkName "a")
 
-  convertDepsToExp (Dep "a" [Leaf "b"]) `ppsB`
+  convertDepsToExp (Dep "a" [Dep "b" []]) `ppsB`
     (AppE (VarE $ mkName "a") (VarE $ mkName "b"))
 
-  convertDepsToExp (Dep "a" [Leaf "b", Leaf "c"]) `ppsB`
+  convertDepsToExp (Dep "a" [Dep "b" [], Dep "c" []]) `ppsB`
     (AppE (AppE (VarE $ mkName "a") (VarE $ mkName "b")) (VarE $ mkName "c"))
 
   putStrLn ""
   putStrLn "# override fn"
 
-  override (Leaf "a") "a" "b" `shouldBe` Leaf "b"
-  override (Leaf "a") "a" "c" `shouldBe` Leaf "c"
-  override (Leaf "a") "b" "c" `shouldBe` Leaf "a"
+  override (Dep "a" []) "a" "b" `shouldBe` Dep "b" []
+  override (Dep "a" []) "a" "c" `shouldBe` Dep "c" []
+  override (Dep "a" []) "b" "c" `shouldBe` Dep "a" []
 
-  override (Dep "b" [Leaf "a"]) "x" "c" `shouldBe` (Dep "b" [Leaf "a"])
-  override (Dep "b" [Leaf "a"]) "b" "c" `shouldBe` (Dep "c" [Leaf "a"])
-  override (Dep "b" [Leaf "a"]) "a" "c" `shouldBe` (Dep "b" [Leaf "c"])
+  override (Dep "b" [Dep "a" []]) "x" "c" `shouldBe` (Dep "b" [Dep "a" []])
+  override (Dep "b" [Dep "a" []]) "b" "c" `shouldBe` (Dep "c" [Dep "a" []])
+  override (Dep "b" [Dep "a" []]) "a" "c" `shouldBe` (Dep "b" [Dep "c" []])
 
-  override (Dep "b" [Leaf "a", Leaf "a"]) "a" "c" `shouldBe` (Dep "b" [Leaf "c", Leaf "c"])
+  override (Dep "b" [Dep "a" [], Dep "a" []]) "a" "c" `shouldBe` (Dep "b" [Dep "c" [], Dep "c" []])
 
   putStrLn ""
   putStrLn "# assemble"
@@ -82,7 +84,7 @@ main = do
   putStrLn "# mocking"
 
   let
-    fooDMock = Leaf "fooMock"
+    fooDMock = Dep "fooMock" []
     fooMock = 33 
   $(assemble $ override barD "foo" "fooMock") `shouldBe` 34
 
@@ -92,7 +94,7 @@ main = do
   $(assemble $ idTestD) `shouldBe` 3
 
   let
-    idDMock = Leaf "idMock"
+    idDMock = Dep "idMock" []
     idMock = (+1) 
   $(assemble $ override idTestD "id" "idMock") `shouldBe` 4
 

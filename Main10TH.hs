@@ -28,22 +28,16 @@ data DepsG a = Dep a [DepsG a]
 
 type Deps = DepsG String
 
-pattern Leaf x <- Dep x []
-  where Leaf x =  Dep x []
-
 
 mapDeps :: (a -> b) -> DepsG a -> DepsG b 
-mapDeps f (Leaf n)   = Leaf $ f n
 mapDeps f (Dep n xs) = Dep (f n) (map (mapDeps f) xs)
 
 -- mapChildren :: (a -> b) -> DepsG a -> DepsG a
-mapChildren f (Leaf n)   = Leaf n
 mapChildren f (Dep n xs) = Dep n (f $ map (mapChildren f) xs)
 
 
-override (Leaf n) a b    = Leaf $ overrideName n a b
-override (Dep n xs) a b  = Dep (overrideName n a b) (map (\x-> override x a b) xs)
+override d a b = mapDeps (overrideName a b) d
 
-overrideName n a b | n == a      = b
+overrideName a b n | n == a      = b
                    | otherwise   = n
 
