@@ -117,8 +117,9 @@ main = do
 
 
   section "code that is more real-life"
-  mockConsole <- newIORef []
+  
   let parseTime t = fromJust $ parseTimeM True defaultTimeLocale "%Y-%m-%d %H:%M:%S%Q" t
+  mockConsole <- newIORef []
   cTime <- newIORef $ parseTime "2016-01-01 14:00:00"
   let
     putStrLnMockD = Dep "putStrLnMock" []
@@ -132,35 +133,36 @@ main = do
     getCurrentTimeMockD = Dep "getCurrentTimeMock" []
     getCurrentTimeMock = readIORef cTime
 
-  timer <- $(makeTimerD 
-      $> override "putStrLn" "putStrLnMock"
-      $> override "getCurrentTime" "getCurrentTimeMock"
-      $> assemble
-    )
-  
+    setUpThen cont = do
+      writeIORef mockConsole [] 
+      writeIORef cTime $ parseTime "2016-01-01 14:00:00"
+      timer <- $(makeTimerD 
+          $> override "putStrLn" "putStrLnMock"
+          $> override "getCurrentTime" "getCurrentTimeMock"
+          $> assemble
+        )
+      timer
+      cont timer
+
   readMockConsole >>= (`shouldBe` [])
-  timer
-  readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC"])
-  timer
-  readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00 UTC, diff: 0s"])
+  
+  setUpThen $ \timer -> do
+    readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC"])
 
-  writeIORef cTime $ parseTime "2016-01-01 14:00:01"
-  timer
-  readMockConsole >>= (`shouldBe`
-    [ "2016-01-01 14:00:00 UTC"
-    , "2016-01-01 14:00:00 UTC, diff: 0s"
-    , "2016-01-01 14:00:01 UTC, diff: 1s"
-    ])
+  setUpThen $ \timer -> do
+    timer
+    readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00 UTC, diff: 0s"])
 
-  -- [ ] TODO figure out a way to branch out just like with Jasmine-Given JS testing framework
-  writeIORef cTime $ parseTime "2016-01-01 14:00:01.00002"
-  timer
-  readMockConsole >>= (`shouldBe`
-    [ "2016-01-01 14:00:00 UTC"
-    , "2016-01-01 14:00:00 UTC, diff: 0s"
-    , "2016-01-01 14:00:01 UTC, diff: 1s"
-    , "2016-01-01 14:00:01.00002 UTC, diff: 0.00002s"
-    ])
+  setUpThen $ \timer -> do
+    writeIORef cTime $ parseTime "2016-01-01 14:00:01"
+    timer
+    readMockConsole >>= (`shouldBe` [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"])
+
+  -- [x] TODO figure out a way to branch out just like with Jasmine-Given JS testing framework
+  setUpThen $ \timer -> do
+    writeIORef cTime $ parseTime "2016-01-01 14:00:00.00002"
+    timer
+    readMockConsole >>= (`shouldBe` [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00.00002 UTC, diff: 0.00002s"])
 
 shouldBe = shouldBeF show
 
