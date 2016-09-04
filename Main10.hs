@@ -1,3 +1,11 @@
+{-
+
+In this experiment I am trying to emulate the manual assembly
+of deeply nested and injected dependencies with the help of TH
+and config ADT 
+
+-}
+
 -- {-# LANGUAGE ExistentialQuantification #-}
 -- {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -32,7 +40,7 @@ main = do
   -- let 
   --   fooDMock = 33
   -- print $(assemble barDMock)
-  
+
 --   override (Leaf "a") "a" "b" `shouldBe` Leaf "b"
 
 -- override
