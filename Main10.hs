@@ -24,6 +24,7 @@
 -}
 
 {-# LANGUAGE TemplateHaskell #-}
+{-# language NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -fdefer-type-errors #-}
 {-# OPTIONS_GHC -ddump-splices #-}
 {-# OPTIONS_GHC -ddump-to-file #-}
@@ -35,21 +36,18 @@ import Main10TH
 import Main10App
 import Language.Haskell.TH
 
-
-($>) = flip ($)
-
 main :: IO ()
 main = do
-  putStrLn ""
-  putStrLn "# mapDeps"
+
+  section "mapDeps"
 
   let l x = Dep x []
 
   mapDeps (const "2" ) (Dep "1" []) `shouldBe` (Dep "2" [])
   mapDeps (const 2) (Dep "1" []) `shouldBe` (Dep 2 [])
 
-  putStrLn ""
-  putStrLn "# convertDepsToExp"
+
+  section "convertDepsToExp"
 
   -- let ppsB = shouldBeF pprint
   let ppsB = shouldBeF show
@@ -62,8 +60,8 @@ main = do
   convertDepsToExp (Dep "a" [Dep "b" [], Dep "c" []]) `ppsB`
     (AppE (AppE (VarE $ mkName "a") (VarE $ mkName "b")) (VarE $ mkName "c"))
 
-  putStrLn ""
-  putStrLn "# override fn"
+
+  section "override fn"
 
   override (Dep "a" []) "a" "b" `shouldBe` Dep "b" []
   override (Dep "a" []) "a" "c" `shouldBe` Dep "c" []
@@ -75,21 +73,21 @@ main = do
 
   override (Dep "b" [Dep "a" [], Dep "a" []]) "a" "c" `shouldBe` (Dep "b" [Dep "c" [], Dep "c" []])
 
-  putStrLn ""
-  putStrLn "# assemble"
+
+  section "assemble"
   
   $(assemble barD) `shouldBe` 2
 
-  putStrLn ""
-  putStrLn "# mocking"
+
+  section "mocking"
 
   let
     fooDMock = Dep "fooMock" []
     fooMock = 33 
   $(assemble $ override barD "foo" "fooMock") `shouldBe` 34
 
-  putStrLn ""
-  putStrLn "# type variable support"
+
+  section "type variable support"
 
   $(assemble $ idTestD) `shouldBe` 3
 
@@ -98,14 +96,19 @@ main = do
     idMock = (+1) 
   $(assemble $ override idTestD "id" "idMock") `shouldBe` 4
 
-  putStrLn ""
-  putStrLn "# module support"
+
+  section "module support"
   
   $(assemble $ testModuleD) `shouldBe` 12
 
 
-shouldBe actual expected | actual == expected = putStrLn $ "OK " ++ show actual
-                         | otherwise          = error $ "FAIL " ++ show actual ++ " /= " ++ show expected
+shouldBe = shouldBeF show
 
 shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
                             | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
+
+($>) = flip ($)
+
+section name = do
+  putStrLn ""
+  putStrLn $ "# " ++ name 
