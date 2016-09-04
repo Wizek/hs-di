@@ -13,7 +13,7 @@ and config ADT
 {-# OPTIONS_GHC -ddump-splices #-}
 {-# OPTIONS_GHC -ddump-to-file #-}
 
-import Data.Map as Map
+import qualified Data.Map as Map
 import Data.Dynamic
 import Data.Maybe
 import Main10TH
@@ -41,8 +41,22 @@ main = do
   --   fooDMock = 33
   -- print $(assemble barDMock)
 
---   override (Leaf "a") "a" "b" `shouldBe` Leaf "b"
+  override (Leaf "a") "a" "b" `shouldBe` Leaf "b"
+  override (Leaf "a") "a" "c" `shouldBe` Leaf "c"
+  override (Leaf "a") "b" "c" `shouldBe` Leaf "a"
 
--- override
+  override (Cons "b" [Leaf "a"]) "x" "c" `shouldBe` (Cons "b" [Leaf "a"])
+  override (Cons "b" [Leaf "a"]) "b" "c" `shouldBe` (Cons "c" [Leaf "a"])
+  override (Cons "b" [Leaf "a"]) "a" "c" `shouldBe` (Cons "b" [Leaf "c"])
 
-shouldBe actual expected = print $ actual == expected
+  override (Cons "b" [Leaf "a", Leaf "a"]) "a" "c" `shouldBe` (Cons "b" [Leaf "c", Leaf "c"])
+
+  $(assemble barD) `shouldBe` 2
+
+  let
+    fooDMock = Leaf "fooMock"
+    fooMock = 33 
+  $(assemble $ override barD "foo" "fooMock") `shouldBe` 34
+
+shouldBe actual expected | actual == expected = putStrLn $ "OK " ++ show actual
+                         | otherwise          = error $ "FAIL " ++ show actual ++ " /= " ++ show expected

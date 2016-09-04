@@ -24,8 +24,15 @@ convertDefsToExp (Leaf name) = VarE $ mkName name
 convertDefsToExp (Cons name (x:xs)) = AppE (VarE $ mkName name) (convertDefsToExp x)
 
 data Defs = Leaf String | Cons String [Defs]
-  deriving (Show)
+  deriving (Show, Eq)
 
 fooD = Leaf "foo"
 barD = Cons "bar" [fooD]
 -- barDMock = Cons "bar" [fooDMock]
+
+override (Leaf n) a b     = Leaf $ overrideName n a b
+override (Cons n xs) a b  = Cons (overrideName n a b) (map (\x-> override x a b) xs)
+
+overrideName n a b | n == a      = b
+                   | otherwise   = n
+
