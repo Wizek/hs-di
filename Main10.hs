@@ -26,6 +26,8 @@
   [x] TODO: make multiple argumetns work
   [x] TODO: Simplify Deps
   [x] TODO: reorder arguments of override
+  [x] TODO: try with some real-life code
+  [ ] TODO: Write quasi quoter or TH splicer that writes the `Deps` definitions too
   [ ] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 -}
 
@@ -41,6 +43,9 @@ import Data.Maybe
 import Main10TH
 import Main10App
 import Language.Haskell.TH
+import Main10RealCode 
+import Data.Time
+import Data.IORef 
 
 main :: IO ()
 main = do
@@ -104,21 +109,65 @@ main = do
 
 
   section "module support"
-  
   $(assemble $ testModuleD) `shouldBe` 12
-
 
   section "qualified names"
   $(assemble $ Dep "Prelude.id" []) 1 `shouldBe` 1
   $(assemble $ Dep "Prelude.*" []) 2 3 `shouldBe` 6
 
 
+  section "code that is more real-life"
+  mockConsole <- newIORef []
+  let parseTime t = fromJust $ parseTimeM True defaultTimeLocale "%Y-%m-%d %H:%M:%S%Q" t
+  cTime <- newIORef $ parseTime "2016-01-01 14:00:00"
+  let
+    putStrLnMockD = Dep "putStrLnMock" []
+    putStrLnMock a = do modifyIORef mockConsole (a :)
+    
+    -- readMockConsole = readIORef mockConsole >>= fmap reverse 
+    readMockConsole = do
+      c <- readIORef mockConsole
+      return $ reverse c 
+
+    getCurrentTimeMockD = Dep "getCurrentTimeMock" []
+    getCurrentTimeMock = readIORef cTime
+
+  timer <- $(makeTimerD 
+      $> override "putStrLn" "putStrLnMock"
+      $> override "getCurrentTime" "getCurrentTimeMock"
+      $> assemble
+    )
+  
+  readMockConsole >>= (`shouldBe` [])
+  timer
+  readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC"])
+  timer
+  readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00 UTC, diff: 0s"])
+
+  writeIORef cTime $ parseTime "2016-01-01 14:00:01"
+  timer
+  readMockConsole >>= (`shouldBe`
+    [ "2016-01-01 14:00:00 UTC"
+    , "2016-01-01 14:00:00 UTC, diff: 0s"
+    , "2016-01-01 14:00:01 UTC, diff: 1s"
+    ])
+
+  -- [ ] TODO figure out a way to branch out just like with Jasmine-Given JS testing framework
+  writeIORef cTime $ parseTime "2016-01-01 14:00:01.00002"
+  timer
+  readMockConsole >>= (`shouldBe`
+    [ "2016-01-01 14:00:00 UTC"
+    , "2016-01-01 14:00:00 UTC, diff: 0s"
+    , "2016-01-01 14:00:01 UTC, diff: 1s"
+    , "2016-01-01 14:00:01.00002 UTC, diff: 0.00002s"
+    ])
+
 shouldBe = shouldBeF show
 
 shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
                             | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
 
-($>) = flip ($)
+-- ($>) = flip ($)
 
 section name = do
   putStrLn ""
