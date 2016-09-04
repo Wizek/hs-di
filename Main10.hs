@@ -18,7 +18,7 @@
   (?) How is performance impacted? Does GHC notice `f (g x) (g x)`? 
   
   [x] TODO: make multiple argumetns work
-  [ ] TODO: Simplify Deps
+  [x] TODO: Simplify Deps
   [ ] TODO: reorder arguments of override
   [ ] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 -}
