@@ -1,7 +1,7 @@
 module Main10App
-	( module Main10App
-	, module Main10TestImport
-	) where
+  ( module Main10App
+  , module Main10TestImport
+  ) where
 
 import Main10TH
 import Main10TestImport

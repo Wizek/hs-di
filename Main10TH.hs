@@ -5,27 +5,32 @@ module Main10TH where
 import Control.Monad
 import Language.Haskell.TH
 
-curryN :: Int -> Q Exp
-curryN n = do
-  f  <- newName "f"
-  xs <- replicateM n (newName "x")
-  let args = map VarP (f:xs)
-      ntup = TupE (map VarE xs)
-  return $ LamE args (AppE (AppE (VarE $ mkName "f") (VarE $ mkName "asd")) (VarE $ mkName "foo"))
+($>) = flip ($)
+(.>) = flip (.)
 
 assemble t = do
   -- return $ AppE (VarE $ mkName $ fst t) (let (a,b) = snd t in AppE (VarE $ mkName a) (VarE $ mkName b))
   -- return $ AppE (VarE $ mkName $ fst t) $(runQ [|(VarE $ mkName $ snd t)|])
   -- return $ AppE (VarE $ mkName $ fst t) $([|(VarE $ mkName $ snd t)|])
-  return $ convertDefsToExp t
+  t $> convertDefsToExp $> return
 
-convertDefsToExp (Leaf name) = VarE $ mkName name
--- convertDefsToExp (Cons name []) = AppE (VarE $ mkName a) (VarE $ mkName b)
-convertDefsToExp (Cons name (x:xs)) = AppE (VarE $ mkName name) (convertDefsToExp x)
+convertDefsToExp :: Defs -> Exp
+convertDefsToExp = mapDefs (mkName .> VarE) .> convertDefsToExp
 
-data Defs = Leaf String | Cons String [Defs]
+convertDefsToExp' (Leaf name) = name
+-- convertDefsToExp' (Cons name []) = AppE (VarE $ mkName a) (VarE $ mkName b)
+convertDefsToExp' (Cons name (x:xs)) = AppE name (convertDefsToExp' x)
+
+data DefsG a = Leaf a | Cons a [DefsG a]
   deriving (Show, Eq)
 
+type Defs = DefsG String
+  -- deriving (Show, Eq)
+
+
+mapDefs :: (a -> b) -> DefsG a -> DefsG b 
+mapDefs f (Leaf n)    = Leaf $ f n
+mapDefs f (Cons n xs) = Cons (f n) (map (mapDefs f) xs)
 
 
 -- barDMock = Cons "bar" [fooDMock]
