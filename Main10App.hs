@@ -9,14 +9,14 @@ import Main10TestImport
 fooD = Leaf "foo"
 foo = 1
 
-barD = Cons "bar" [fooD]
+barD = Dep "bar" [fooD]
 bar foo = foo + 1
 
 idD = Leaf "id"
 
-idTestD = Cons "idTest" [idD]
+idTestD = Dep "idTest" [idD]
 idTest id = id 1 + 2  
 
 
-testModuleD = Cons "testModule" [testImportD]
+testModuleD = Dep "testModule" [testImportD]
 testModule testImport = testImport + 3

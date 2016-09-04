@@ -13,11 +13,12 @@
   (+) emulates how a human would do DI by hand, and does the hard work automatically
 
   (-) Limited module support, requires re-exporting
-    (?) Could it be possible to pass the default dependencies along in `Defs` somehow?
+    (?) Could it be possible to pass the default dependencies along in `Deps` somehow?
       That could get rid of this issue
   (?) How is performance impacted? Does GHC notice `f (g x) (g x)`? 
   
   [x] TODO: make multiple argumetns work
+  [ ] TODO: Simplify Deps
   [ ] TODO: reorder arguments of override
   [ ] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 -}
@@ -40,23 +41,23 @@ import Language.Haskell.TH
 main :: IO ()
 main = do
   putStrLn ""
-  putStrLn "# mapDefs"
+  putStrLn "# mapDeps"
 
-  mapDefs (const "2" ) (Leaf "1") `shouldBe` (Leaf "2")
-  mapDefs (const 2) (Leaf "1") `shouldBe` (Leaf 2)
+  mapDeps (const "2" ) (Leaf "1") `shouldBe` (Leaf "2")
+  mapDeps (const 2) (Leaf "1") `shouldBe` (Leaf 2)
   
   putStrLn ""
-  putStrLn "# convertDefsToExp"
+  putStrLn "# convertDepsToExp"
 
   -- let ppsB = shouldBeF pprint
   let ppsB = shouldBeF show
 
-  convertDefsToExp (Leaf "a") `ppsB` (VarE $ mkName "a")
+  convertDepsToExp (Leaf "a") `ppsB` (VarE $ mkName "a")
 
-  convertDefsToExp (Cons "a" [Leaf "b"]) `ppsB`
+  convertDepsToExp (Dep "a" [Leaf "b"]) `ppsB`
     (AppE (VarE $ mkName "a") (VarE $ mkName "b"))
 
-  convertDefsToExp (Cons "a" [Leaf "b", Leaf "c"]) `ppsB`
+  convertDepsToExp (Dep "a" [Leaf "b", Leaf "c"]) `ppsB`
     (AppE (AppE (VarE $ mkName "a") (VarE $ mkName "b")) (VarE $ mkName "c"))
 
   putStrLn ""
@@ -66,11 +67,11 @@ main = do
   override (Leaf "a") "a" "c" `shouldBe` Leaf "c"
   override (Leaf "a") "b" "c" `shouldBe` Leaf "a"
 
-  override (Cons "b" [Leaf "a"]) "x" "c" `shouldBe` (Cons "b" [Leaf "a"])
-  override (Cons "b" [Leaf "a"]) "b" "c" `shouldBe` (Cons "c" [Leaf "a"])
-  override (Cons "b" [Leaf "a"]) "a" "c" `shouldBe` (Cons "b" [Leaf "c"])
+  override (Dep "b" [Leaf "a"]) "x" "c" `shouldBe` (Dep "b" [Leaf "a"])
+  override (Dep "b" [Leaf "a"]) "b" "c" `shouldBe` (Dep "c" [Leaf "a"])
+  override (Dep "b" [Leaf "a"]) "a" "c" `shouldBe` (Dep "b" [Leaf "c"])
 
-  override (Cons "b" [Leaf "a", Leaf "a"]) "a" "c" `shouldBe` (Cons "b" [Leaf "c", Leaf "c"])
+  override (Dep "b" [Leaf "a", Leaf "a"]) "a" "c" `shouldBe` (Dep "b" [Leaf "c", Leaf "c"])
 
   putStrLn ""
   putStrLn "# assemble"
