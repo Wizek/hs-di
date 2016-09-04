@@ -1,13 +1,9 @@
 {-
-
-In this experiment I am trying to emulate the manual assembly
-of deeply nested and injected dependencies with the help of TH
-and config ADT 
-
+  In this experiment I am trying to emulate the manual assembly
+  of deeply nested and injected dependencies with the help of TH
+  and config ADTs
 -}
 
--- {-# LANGUAGE ExistentialQuantification #-}
--- {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fdefer-type-errors #-}
 {-# OPTIONS_GHC -ddump-splices #-}
@@ -20,15 +16,6 @@ import Main10TH
 import Main10App
 
 ($>) = flip ($)
-
--- test = ("a", "b")
-
--- b = ("b", "c")
--- foo = ("foo", "c")
-
--- curry3 = $(curryN 3)
-
-
 
 main :: IO ()
 main = do

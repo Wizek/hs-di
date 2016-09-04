@@ -1,4 +1,0 @@
-Main10.hs:22:11-23: Splicing expression
-    assemble barD ======> bar foo
-Main10.hs:30:11-23: Splicing expression
-    assemble barD ======> bar foo
