@@ -7,8 +7,13 @@ module Main10TH where
 import Control.Monad
 import Language.Haskell.TH
 
-($>) = flip ($)
 (.>) = flip (.)
+infixl 9 .>
+{-# INLINE (.>) #-}
+
+($>) = flip ($)
+infixl 0 $>
+{-# INLINE ($>) #-}
 
 assemble t = do
   t $> convertDepsToExp $> return
