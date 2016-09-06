@@ -27,7 +27,8 @@
   [x] TODO: Simplify Deps
   [x] TODO: reorder arguments of override
   [x] TODO: try with some real-life code
-  [ ] TODO: Write quasi quoter or TH splicer that writes the `Deps` definitions too
+  [x] TODO: Write quasi quoter or TH splicer that writes the `Deps` definitions too
+  [ ] TODO: Consider `inj` also adding an assembled version of the function to be used "without" DI.
   [ ] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 -}
 
@@ -187,6 +188,8 @@ main = do
   (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>= (`shouldBe` "asdD = Dep \"asd\" []") 
   (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>= (`shouldBe` "asdD = Dep \"asd\" [aD]") 
   
+  (injLeaf "asdasd" $> runQ $> fmap pprint) >>= (`shouldBe` "asdasdD = Dep \"asdasd\" []") 
+
   return ()
 
 shouldBe = shouldBeF show

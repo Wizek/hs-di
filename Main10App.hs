@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# language TemplateHaskell #-}
 
 module Main10App
   ( module Main10App
@@ -14,8 +14,8 @@ foo = 1
 inj
 bar foo = foo + 1
 
-idD = Dep "id" []
 
+injLeaf "id"
 inj
 idTest id = id 1 + 2  
 

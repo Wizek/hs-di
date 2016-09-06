@@ -1,4 +1,5 @@
 {-# language NoMonomorphismRestriction #-}
+{-# language TemplateHaskell #-}
 
 module Main10RealCode where
 
@@ -9,10 +10,11 @@ import Data.IORef
 import Control.Monad
 import Data.Time
 
-putStrLnD = Dep "putStrLn" []
-getCurrentTimeD = Dep "getCurrentTime" []
 
-makeTimerD = Dep "makeTimer" [putStrLnD, getCurrentTimeD]
+injLeaf "putStrLn"
+injLeaf "getCurrentTime"
+
+inj
 makeTimer putStrLn getCurrentTime = liftIO $ do
   prevTime <- newIORef Nothing
   return $ liftIO $ do

@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# language TemplateHaskell #-}
 {-# language ViewPatterns #-}
 {-# language PatternSynonyms #-}
 
@@ -37,7 +37,6 @@ type Deps = DepsG String
 mapDeps :: (a -> b) -> DepsG a -> DepsG b 
 mapDeps f (Dep n xs) = Dep (f n) (map (mapDeps f) xs)
 
--- mapChildren :: (a -> b) -> DepsG a -> DepsG a
 mapChildren f (Dep n xs) = Dep n (f $ map (mapChildren f) xs)
 
 override a b d = mapDeps (overrideName a b) d
@@ -46,7 +45,6 @@ overrideName a b n | n == a      = b
                    | otherwise   = n
 
 
--- getContentOfNextLineD = Dep "getContentOfNextLine" [] 
 getContentOfNextLine :: Q String
 getContentOfNextLine = do
   loc <- location 
@@ -74,21 +72,28 @@ parseLineToDeps line = (name, nameD, deps)
 
 inj = injectable
 
--- injectableD = Dep "injectableI" [parseLineToDepsD]
 injectable :: Q [Dec]
 injectable = injectableI getContentOfNextLine
 injectableI getContentOfNextLine = do
-  line <- getContentOfNextLine
-  let
-    (name, nameD, deps) = parseLineToDeps line
+  getContentOfNextLine
+  >>= parseLineToDeps .> return
+  >>= injDecs
+
+injLeaf = injectableLeaf
+
+injectableLeaf :: String -> Q [Dec]
+injectableLeaf name = injDecs (name, name ++ "D", [])
+
+injDecs (name, nameD, deps) =
+  [d|$identD = $consDep $nameStr $listLiteral|]
+  where 
     identD :: Q Pat
     identD = return $ VarP $ mkName nameD
     nameStr :: Q Exp
     nameStr = return $ (StringL .> LitE) name
     listLiteral :: Q Exp
     listLiteral = return $ ListE $ map (mkName .> VarE) deps
+    consDep :: Q Exp
     consDep = return $ ConE $ mkName "Dep"
-  
-  [d|$identD = $consDep $nameStr $listLiteral|]
 
 r x = x .> return
