@@ -123,12 +123,12 @@ main = do
   cTime <- newIORef $ parseTime "2016-01-01 14:00:00"
   let
     putStrLnMockD = Dep "putStrLnMock" []
-    putStrLnMock a = do modifyIORef mockConsole (a :)
+    putStrLnMock a = modifyIORef mockConsole (a :)
     
     -- readMockConsole = readIORef mockConsole >>= fmap reverse 
     readMockConsole = do
-      c <- readIORef mockConsole
-      return $ reverse c 
+      readIORef mockConsole >>= (reverse .> return) 
+      -- readIORef mockConsole $> (fmap reverse) 
 
     getCurrentTimeMockD = Dep "getCurrentTimeMock" []
     getCurrentTimeMock = readIORef cTime
