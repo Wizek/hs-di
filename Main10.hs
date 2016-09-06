@@ -166,21 +166,33 @@ main = do
 
 
 
-  section "more automatic declaration"
+  section "automatic deps declaration"
   -- deps "makeTimer" $> runQ >>= (pprint  .> (`shouldBe` "Dep \"makeTimer\" [putStrLnD, getCurrentTimeD]"))
   -- putStrLn $( (fmap show $ location) >>= ( StringL .> LitE .> return)  )
-
-  $(getContentOfNextLine) `shouldBe` "  let asd foo = foo + 1"
+  -- let asd = fmap (LitE $ StringL) getContentOfNextLine
+  $(getContentOfNextLineLit) `shouldBe` "  let asd foo = foo + 1"
   let asd foo = foo + 1
+  $(getContentOfNextLineLit) `shouldBe` "  let asd foo = foo + 2"
+  let asd foo = foo + 2
+  let 
+    a = $(getContentOfNextLineLit) `shouldBe` "    asd foo = foo + 2"
+    asd foo = foo + 2
+  a
+  -- parseLineToDeps "foo = 1" `shouldBe` Dep "foo" []
 
+  parseLineToDeps "a = 1" `shouldBe` ("a", "aD", [])
+  parseLineToDeps "b = 1" `shouldBe` ("b", "bD", [])
+  parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"])
+
+  (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>= (`shouldBe` "asdD = Dep \"asd\" []") 
+  (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>= (`shouldBe` "asdD = Dep \"asd\" [aD]") 
+  
   return ()
 
 shouldBe = shouldBeF show
 
 shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
                             | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
-
--- ($>) = flip ($)
 
 section name = do
   putStrLn ""

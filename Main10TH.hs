@@ -45,14 +45,12 @@ override a b d = mapDeps (overrideName a b) d
 overrideName a b n | n == a      = b
                    | otherwise   = n
 
--- deps :: String -> Q [Dec]
-deps s = [d|f = 1|]
 
-
+-- getContentOfNextLineD = Dep "getContentOfNextLine" [] 
+getContentOfNextLine :: Q String
 getContentOfNextLine = do
-  -- (fmap show $ location) >>= ( StringL .> LitE .> return)
   loc <- location 
-  runIO $ print loc
+  -- runIO $ print loc
   line <- runIO $ do
     file <- readFile $ loc_filename loc
     let
@@ -60,5 +58,37 @@ getContentOfNextLine = do
       l = file $> lines $> drop (start) $> head
     return l
 
-  return $ LitE $ StringL line
-  -- >>= ( (\a->runIO (print a)) >> return ("a" $> (StringL .> LitE))  )
+  return line
+
+getContentOfNextLineLit = getContentOfNextLine $> fmap (StringL .> LitE)
+
+parseLineToDeps :: String -> (String, String, [String])
+parseLineToDeps line = (name, nameD, deps)
+  where
+  ws = words line
+  name = head ws
+  args = takeWhile (/= "=") $ tail ws
+  nameD = d name
+  deps = map d args
+  d n = n ++ "D"
+
+inj = injectable
+
+-- injectableD = Dep "injectableI" [parseLineToDepsD]
+injectable :: Q [Dec]
+injectable = injectableI getContentOfNextLine
+injectableI getContentOfNextLine = do
+  line <- getContentOfNextLine
+  let
+    (name, nameD, deps) = parseLineToDeps line
+    identD :: Q Pat
+    identD = return $ VarP $ mkName nameD
+    nameStr :: Q Exp
+    nameStr = return $ (StringL .> LitE) name
+    listLiteral :: Q Exp
+    listLiteral = return $ ListE $ map (mkName .> VarE) deps
+    consDep = return $ ConE $ mkName "Dep"
+  
+  [d|$identD = $consDep $nameStr $listLiteral|]
+
+r x = x .> return

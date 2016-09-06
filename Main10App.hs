@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Main10App
   ( module Main10App
   , module Main10TestImport
@@ -6,15 +8,15 @@ module Main10App
 import Main10TH
 import Main10TestImport
 
-fooD = Dep "foo" []
+inj
 foo = 1
 
-barD = Dep "bar" [fooD]
+inj
 bar foo = foo + 1
 
 idD = Dep "id" []
 
-idTestD = Dep "idTest" [idD]
+inj
 idTest id = id 1 + 2  
 
 
