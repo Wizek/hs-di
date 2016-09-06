@@ -45,3 +45,20 @@ override a b d = mapDeps (overrideName a b) d
 overrideName a b n | n == a      = b
                    | otherwise   = n
 
+-- deps :: String -> Q [Dec]
+deps s = [d|f = 1|]
+
+
+getContentOfNextLine = do
+  -- (fmap show $ location) >>= ( StringL .> LitE .> return)
+  loc <- location 
+  runIO $ print loc
+  line <- runIO $ do
+    file <- readFile $ loc_filename loc
+    let
+      (start, _) = loc_start loc
+      l = file $> lines $> drop (start) $> head
+    return l
+
+  return $ LitE $ StringL line
+  -- >>= ( (\a->runIO (print a)) >> return ("a" $> (StringL .> LitE))  )

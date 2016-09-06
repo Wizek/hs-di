@@ -164,6 +164,17 @@ main = do
     timer
     readMockConsole >>= (`shouldBe` [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00.00002 UTC, diff: 0.00002s"])
 
+
+
+  section "more automatic declaration"
+  -- deps "makeTimer" $> runQ >>= (pprint  .> (`shouldBe` "Dep \"makeTimer\" [putStrLnD, getCurrentTimeD]"))
+  -- putStrLn $( (fmap show $ location) >>= ( StringL .> LitE .> return)  )
+
+  $(getContentOfNextLine) `shouldBe` "  let asd foo = foo + 1"
+  let asd foo = foo + 1
+
+  return ()
+
 shouldBe = shouldBeF show
 
 shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
