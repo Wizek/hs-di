@@ -5,6 +5,7 @@ module SimpleDefs
 
 import DI
 import DefsToTestModuleSupport
+import DefsToTestIdiomaticModuleSupport
 
 inj
 foo = 1
@@ -19,3 +20,6 @@ idTest id = id 1 + 2
 
 inj
 testModule testImport = testImport + 3
+
+inj
+testIdiomaticModule testIdimoaticImport = testIdimoaticImport + 4

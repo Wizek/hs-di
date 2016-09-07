@@ -156,3 +156,26 @@ spec = do
 
       return ()
 
+    
+    specify "idiomatic module support" $ do
+      -- (convertDepsViaTuple (Dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
+      (tuplePattern (Dep "a" []) $> pprint) `shouldBe` "a"
+      (tuplePattern (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "(a, b)"
+      (convertDepsViaTuple (Dep "a" []) $> pprint) `shouldBe` "let a = aT\n in a"
+      (convertDepsViaTuple (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "let (a, b) = aT\n in a b"
+      (convertDepsViaTuple (Dep "a" [Dep "b" [Dep "d" []], Dep "c" []]) $> pprint) 
+        `shouldBe` "let (a, (b, d), c) = aT\n in a (b d) c"
+      
+    -- specify "idiomatic module support" $ do
+    --   $(assemble testIdiomaticModuleD) `shouldBe` 3
+
+-- convertDepsViaTuple (Dep n []) = [|let $n = $(n ++ "T") in $n|]
+convertDepsViaTuple deps@(Dep n _) = LetE 
+  [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ n ++ "T")) []] 
+  (convertDepsToExp deps)
+
+-- convertDepsViaTuple (Dep n [Dep g]) = LetE [ValD (VarP a) (NormalB (VarE $ mkName $ n ++ "T")) []] (VarE a)
+-- LetE [ValD (TupP [VarP a_17,VarP b_18]) (NormalB (VarE aaaaT_1627464774)) []] (AppE (VarE a_17) (VarE b_18))
+-- tuplePattern (Dep n []) = TupP [VarP $ mkName n]
+tuplePattern (Dep n []) = VarP $ mkName n
+tuplePattern (Dep n ds) = TupP $ (VarP $ mkName n) : map tuplePattern ds

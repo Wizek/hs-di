@@ -8,8 +8,10 @@ import Control.Monad
 import Language.Haskell.TH
 import Common
 
-assemble t = do
-  t $> convertDepsToExp $> return
+assemble :: Deps -> Q Exp
+assemble = assemble' .> return
+
+assemble' = convertDepsToExp
 
 convertDepsToExp :: Deps -> Exp
 convertDepsToExp = id
