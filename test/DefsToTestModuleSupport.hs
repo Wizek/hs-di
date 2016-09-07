@@ -1,6 +1,6 @@
-module Main10TestImport where
+module DefsToTestModuleSupport where
 
-import Main10TH
+import DI
 
 testImportD = Dep "testImport" []
 testImport = 9

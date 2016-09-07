@@ -2,7 +2,7 @@
 {-# language ViewPatterns #-}
 {-# language PatternSynonyms #-}
 
-module Main10TH where
+module DependencyInjector where
 
 import Control.Monad
 import Language.Haskell.TH
@@ -97,3 +97,4 @@ injDecs (name, nameD, deps) =
     consDep = return $ ConE $ mkName "Dep"
 
 r x = x .> return
+

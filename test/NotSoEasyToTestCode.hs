@@ -1,9 +1,9 @@
 {-# language NoMonomorphismRestriction #-}
 {-# language TemplateHaskell #-}
 
-module Main10RealCode where
+module NotSoEasyToTestCode where
 
-import Main10TH
+import DI
 
 import System.IO
 import Data.IORef
@@ -27,3 +27,12 @@ makeTimer putStrLn getCurrentTime = liftIO $ do
 
 -- Consider importing Shelly to make this even more realistic
 liftIO = id
+
+-- Dep "makeTimer" [Dep "putStrLn" [], Dep "getCurrentTime" []]
+-- a = (makeTimer, putStrLn, getCurrentTime)
+-- makeTimer' = let (f, a, b) = a in f a b 
+
+-- Dep "makeTimer" [Dep "putStrLn" [], Dep "getCurrentTime" [], Dep "foo" [Dep "bar" []]]
+-- a = (makeTimer, putStrLn, getCurrentTime, (foo, bar))
+-- makeTimer' = let (f, a, b, (g, d)) = a in f a b (g d)
+
