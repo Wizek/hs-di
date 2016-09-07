@@ -20,5 +20,5 @@ inj
 idTest id = id 1 + 2  
 
 
-testModuleD = Dep "testModule" [testImportD]
+inj
 testModule testImport = testImport + 3

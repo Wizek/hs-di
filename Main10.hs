@@ -32,7 +32,7 @@
   [ ] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 -}
 
-{-# LANGUAGE TemplateHaskell #-}
+{-# language TemplateHaskell #-}
 {-# language NoMonomorphismRestriction #-}
 {-# OPTIONS_GHC -fdefer-type-errors #-}
 {-# OPTIONS_GHC -ddump-splices #-}
