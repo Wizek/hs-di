@@ -6,14 +6,7 @@ module DependencyInjector where
 
 import Control.Monad
 import Language.Haskell.TH
-
-(.>) = flip (.)
-infixl 9 .>
-{-# INLINE (.>) #-}
-
-($>) = flip ($)
-infixl 0 $>
-{-# INLINE ($>) #-}
+import Common
 
 assemble t = do
   t $> convertDepsToExp $> return

@@ -10,11 +10,11 @@ import Data.Maybe
 import Data.Time
 import Data.IORef 
 import Data.String.Utils
+import Common
 
 spec = do
   describe "" $ do
-    it "" $ do
-      section "mapDeps"
+    specify "mapDeps" $ do
 
       let l x = Dep x []
 
@@ -22,7 +22,7 @@ spec = do
       mapDeps (const 2) (Dep "1" []) `shouldBe` (Dep 2 [])
 
 
-      section "convertDepsToExp"
+    specify "convertDepsToExp" $ do
 
       -- let ppsB = shouldBeF pprint
       -- let ppsB = shouldBeF show
@@ -37,7 +37,7 @@ spec = do
         (AppE (AppE (VarE $ mkName "a") (VarE $ mkName "b")) (VarE $ mkName "c"))
 
 
-      section "override fn"
+    specify "override fn" $ do
 
       override "a" "b" (Dep "a" []) `shouldBe` Dep "b" []
       override "a" "c" (Dep "a" []) `shouldBe` Dep "c" []
@@ -50,12 +50,12 @@ spec = do
       override "a" "c" (Dep "b" [Dep "a" [], Dep "a" []]) `shouldBe` (Dep "b" [Dep "c" [], Dep "c" []])
 
 
-      section "assemble"
+    specify "assemble" $ do
       
       $(assemble barD) `shouldBe` 2
 
 
-      section "mocking"
+    specify "mocking" $ do
 
       let
         fooDMock = Dep "fooMock" []
@@ -63,7 +63,7 @@ spec = do
       $(assemble $ override "foo" "fooMock" barD) `shouldBe` 34
 
 
-      section "type variable support"
+    specify "type variable support" $ do
 
       $(assemble $ idTestD) `shouldBe` 3
 
@@ -73,15 +73,15 @@ spec = do
       $(assemble $ override "id" "idMock" idTestD) `shouldBe` 4
 
 
-      section "module support"
+    specify "module support" $ do
       $(assemble $ testModuleD) `shouldBe` 12
 
-      section "qualified names"
+    specify "qualified names" $ do
       $(assemble $ Dep "Prelude.id" []) 1 `shouldBe` 1
       $(assemble $ Dep "Prelude.*" []) 2 3 `shouldBe` 6
 
 
-      section "code that is more real-life"
+    specify "code that is more real-life" $ do
       
       let parseTime t = fromJust $ parseTimeM True defaultTimeLocale "%Y-%m-%d %H:%M:%S%Q" t
       mockConsole <- newIORef []
@@ -131,7 +131,7 @@ spec = do
 
 
 
-      section "automatic deps declaration"
+    specify "automatic deps declaration" $ do
       -- deps "makeTimer" $> runQ >>= (pprint  .> (`shouldBe` "Dep \"makeTimer\" [putStrLnD, getCurrentTimeD]"))
       -- putStrLn $( (fmap show $ location) >>= ( StringL .> LitE .> return)  )
       -- let asd = fmap (LitE $ StringL) getContentOfNextLine
@@ -156,8 +156,3 @@ spec = do
 
       return ()
 
-section name = do
-  putStrLn ""
-  putStrLn $ "# " ++ name 
-
-shouldBeF _ = shouldBe
