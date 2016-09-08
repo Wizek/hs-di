@@ -22,15 +22,15 @@ convertDepsToExp = id
 
 convertDepsToExp' :: DepsG Exp -> Exp
 convertDepsToExp' d | (_, name,   []) <- getDep d = name
-convertDepsToExp' d | (_, name, x:xs) <- getDep d = convertDepsToExp' (Dep (AppE name (convertDepsToExp' x)) xs)
+convertDepsToExp' d | (_, name, x:xs) <- getDep d =
+  convertDepsToExp' (Dep (AppE name (convertDepsToExp' x)) xs)
 
 data DepsG a = Dep a [DepsG a] | Rep a [DepsG a]
   deriving (Show, Eq)
 
 type Deps = DepsG String
 
-
-mapDepNames :: (a -> b) -> DepsG a -> DepsG b 
+mapDepNames :: (a -> b) -> DepsG a -> DepsG b
 mapDepNames f (Dep n xs) = Dep (f n) (map (mapDepNames f) xs)
 mapDepNames f (Rep n xs) = Rep (f n) (map (mapDepNames f) xs)
 
@@ -54,7 +54,7 @@ overrideDep a b d | (c, n, ds) <- getDep d =
 
 getContentOfNextLine :: Q String
 getContentOfNextLine = do
-  loc <- location 
+  loc <- location
   -- runIO $ print loc
   line <- runIO $ do
     file <- readFile $ loc_filename loc
@@ -94,9 +94,10 @@ injectableLeaf name = injDecs (name, nameD name, [], [])
 injDecs (name, nameD, depsD, deps) =
   [d|
     $identD = $consDep $nameStr $listLiteral
-    $(return $ VarP $ mkName $ nameT $ name) = $(return $ TupE $ map (VarE . mkName) (name : deps))
+    $(return $ VarP $ mkName $ nameT $ name) =
+      $(return $ TupE $ map (VarE . mkName) (name : deps))
   |]
-  where 
+  where
     identD :: Q Pat
     identD = return $ VarP $ mkName nameD
     nameStr :: Q Exp
@@ -111,8 +112,8 @@ nameT = (++ "T")
 
 r x = x .> return
 
-convertDepsViaTuple deps | n <- getDepName deps = LetE 
-  [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ n ++ "T")) []] 
+convertDepsViaTuple deps | n <- getDepName deps = LetE
+  [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ n ++ "T")) []]
   (convertDepsToExp deps)
 
 -- tuplePattern d = tuplePattern' d (getDepName d) (getDepDs d)

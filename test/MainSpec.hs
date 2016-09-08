@@ -11,7 +11,7 @@ import NotSoEasyToTestCode
 
 import Data.Maybe
 import Data.Time
-import Data.IORef 
+import Data.IORef
 import Data.String.Utils
 import Common
 
@@ -53,11 +53,12 @@ spec = do
       override "b" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Rep "c" [Dep "a" []])
       override "a" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Rep "c" []])
 
-      override "a" "c" (Dep "b" [Dep "a" [], Dep "a" []]) `shouldBe` (Dep "b" [Rep "c" [], Rep "c" []])
+      override "a" "c" (Dep "b" [Dep "a" [], Dep "a" []]) `shouldBe`
+        (Dep "b" [Rep "c" [], Rep "c" []])
 
 
     specify "assemble" $ do
-      
+
       $(assemble barD) `shouldBe` 2
 
 
@@ -65,7 +66,7 @@ spec = do
 
       let
         fooDMock = Dep "fooMock" []
-        fooMock = 33 
+        fooMock = 33
       $(assemble $ override "foo" "fooMock" barD) `shouldBe` 34
 
 
@@ -75,7 +76,7 @@ spec = do
 
       let
         idDMock = Dep "idMock" []
-        idMock = (+1) 
+        idMock = (+1)
       $(assemble $ override "id" "idMock" idTestD) `shouldBe` 4
 
 
@@ -88,8 +89,9 @@ spec = do
 
 
     specify "code that is more real-life" $ do
-      
-      let parseTime t = fromJust $ parseTimeM True defaultTimeLocale "%Y-%m-%d %H:%M:%S%Q" t
+
+      let parseTime t =
+            fromJust $ parseTimeM True defaultTimeLocale "%Y-%m-%d %H:%M:%S%Q" t
       mockConsole <- newIORef []
       cTime <- newIORef $ parseTime "2016-01-01 14:00:00"
       let
@@ -97,11 +99,11 @@ spec = do
         putStrLnMockD = Dep "putStrLnMock" []
         putStrLnMockT = putStrLnMock
         putStrLnMock a = modifyIORef mockConsole (a :)
-        
-        -- readMockConsole = readIORef mockConsole >>= fmap reverse 
+
+        -- readMockConsole = readIORef mockConsole >>= fmap reverse
         readMockConsole = do
-          readIORef mockConsole >>= (reverse .> return) 
-          -- readIORef mockConsole $> (fmap reverse) 
+          readIORef mockConsole >>= (reverse .> return)
+          -- readIORef mockConsole $> (fmap reverse)
 
         -- $(inj)
         getCurrentTimeMockD = Dep "getCurrentTimeMock" []
@@ -109,9 +111,9 @@ spec = do
         getCurrentTimeMock = readIORef cTime
 
         setUpThen cont = do
-          writeIORef mockConsole [] 
+          writeIORef mockConsole []
           writeIORef cTime $ parseTime "2016-01-01 14:00:00"
-          timer <- $(makeTimerD 
+          timer <- $(makeTimerD
               $> override "putStrLn" "putStrLnMock"
               $> override "getCurrentTime" "getCurrentTimeMock"
               $> assemble
@@ -120,24 +122,27 @@ spec = do
           cont timer
 
       readMockConsole >>= (`shouldBe` [])
-      
+
       setUpThen $ \timer -> do
         readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC"])
 
       setUpThen $ \timer -> do
         timer
-        readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00 UTC, diff: 0s"])
+        readMockConsole >>= (`shouldBe`
+          ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00 UTC, diff: 0s"])
 
       setUpThen $ \timer -> do
         writeIORef cTime $ parseTime "2016-01-01 14:00:01"
         timer
-        readMockConsole >>= (`shouldBe` [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"])
+        readMockConsole >>= (`shouldBe`
+          [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"])
 
       -- [x] TODO figure out a way to branch out just like with Jasmine-Given JS testing framework
       setUpThen $ \timer -> do
         writeIORef cTime $ parseTime "2016-01-01 14:00:00.00002"
         timer
-        readMockConsole >>= (`shouldBe` [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00.00002 UTC, diff: 0.00002s"])
+        readMockConsole >>= (`shouldBe`
+          [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00.00002 UTC, diff: 0.00002s"])
 
 
 
@@ -149,7 +154,7 @@ spec = do
       let asd foo = foo + 1
       strip $(getContentOfNextLineLit) `shouldBe` "let asd foo = foo + 2"
       let asd foo = foo + 2
-      let 
+      let
         a = strip $(getContentOfNextLineLit) `shouldBe` "asd foo = foo + 2"
         asd foo = foo + 2
       a
@@ -159,35 +164,54 @@ spec = do
       parseLineToDeps "b = 1" `shouldBe` ("b", "bD", [], [])
       parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"], ["a"])
 
-      (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>= 
+      (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>=
         (`shouldBe` "asdD = Dep \"asd\" []\nasdT = (asd)")
-      (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>= 
+      (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>=
         (`shouldBe` "asdD = Dep \"asd\" [aD]\nasdT = (asd, a)")
-      
-      (injLeaf "asdasd" $> runQ $> fmap pprint) >>= 
-        (`shouldSatisfy` ("asdasdD = Dep \"asdasd\" []" `isPrefixOf`)) 
+
+      (injLeaf "asdasd" $> runQ $> fmap pprint) >>=
+        (`shouldSatisfy` ("asdasdD = Dep \"asdasd\" []" `isPrefixOf`))
 
       return ()
 
-  describe "idiona" $ do 
+  describe "idiona" $ do
     specify "idiomatic module support utils" $ do
       -- (convertDepsViaTuple (Dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
       (tuplePattern (Dep "a" []) $> pprint) `shouldBe` "a"
       (tuplePattern (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "(a, b)"
       (convertDepsViaTuple (Dep "a" []) $> pprint) `shouldBe` "let a = aT\n in a"
-      (convertDepsViaTuple (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "let (a, b) = aT\n in a b"
-      (convertDepsViaTuple (Dep "a" [Dep "b" [Dep "d" []], Dep "c" []]) $> pprint) 
+      (convertDepsViaTuple (Dep "a" [Dep "b" []]) $> pprint) `shouldBe`
+        "let (a, b) = aT\n in a b"
+      (convertDepsViaTuple (Dep "a" [Dep "b" [Dep "d" []], Dep "c" []]) $> pprint)
         `shouldBe` "let (a, (b, d), c) = aT\n in a (b d) c"
       (convertDepsViaTuple (Rep "a" []) $> pprint) `shouldBe` "let _ = aT\n in a"
-      (convertDepsViaTuple (Dep "a" [Rep "b" []]) $> pprint) `shouldBe` "let (a, _) = aT\n in a b"
-    
-    -- [ ] TODO: warn or error if override didn't match anything  
+      (convertDepsViaTuple (Dep "a" [Rep "b" []]) $> pprint) `shouldBe`
+        "let (a, _) = aT\n in a b"
+
+    -- [ ] TODO: warn or error if override didn't match anything
     --           e.g. compare before with after to check for EQ
     specify "idiomatic module support" $ do
       $(assemble testIdiomaticModuleD) `shouldBe` 23
       $( testIdiomaticModuleD
         $> override "testIdimoaticImport" "testIdiomaticImportMock"
         $> assemble) `shouldBe` 48
+
+    specify "Still support clumsy fallback" $ do
+      let
+        aD = Dep "a" []
+        aT = a
+        a = 1
+      $( testIdiomaticModuleD
+        $> override "testIdimoaticImport" "a"
+        $> assemble) `shouldBe` 5
+
+    specify "" $ do
+      let
+        aD = Dep "a" []
+        a = 2
+      $( testIdiomaticModuleD
+        $> override "testIdimoaticImport" "a"
+        $> assembleSimple) `shouldBe` 6
 
 -- runOnlyPrefix = ["!"]
 runOnlyPrefix = [""]
