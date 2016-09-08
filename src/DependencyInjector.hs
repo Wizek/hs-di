@@ -21,8 +21,8 @@ convertDepsToExp = id
   .> convertDepsToExp'
 
 convertDepsToExp' :: DepsG Exp -> Exp
-convertDepsToExp' d | (_, name,   []) <- getDep d = name
-convertDepsToExp' d | (_, name, x:xs) <- getDep d =
+convertDepsToExp' (getDep -> (_, name,   [])) = name
+convertDepsToExp' (getDep -> (_, name, x:xs)) =
   convertDepsToExp' (Dep (AppE name (convertDepsToExp' x)) xs)
 
 data DepsG a = Dep a [DepsG a] | Rep a [DepsG a]
@@ -118,8 +118,7 @@ convertDepsViaTuple deps | n <- getDepName deps = LetE
   [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ n ++ "T")) []]
   (convertDepsToExp deps)
 
--- tuplePattern d = tuplePattern' d (getDepName d) (getDepDs d)
-tuplePattern d | (_, n, ds) <- getDep d = tuplePattern' d n ds
+tuplePattern d@(getDep -> (_, n, ds)) = tuplePattern' d n ds
 
 tuplePattern' d n [] = wrapNameFor d
 tuplePattern' d n ds = TupP $ (wrapNameFor d) : map tuplePattern ds
@@ -127,16 +126,9 @@ tuplePattern' d n ds = TupP $ (wrapNameFor d) : map tuplePattern ds
 wrapNameFor (Dep n _) = VarP $ mkName n
 wrapNameFor (Rep n _) = WildP
 
-getDepName (Dep n _) = n
-getDepName (Rep n _) = n
-
-getDepDs (Dep _ ds) = ds
-getDepDs (Rep _ ds) = ds
-
--- getDep d = (getDepName d, getDepDs d)
+getDepName (getDep -> (_, n, _)) = n
+getDepDs   (getDep -> (_, _, ds)) = ds
 
 getDep (Dep n ds) = (Dep, n, ds)
 getDep (Rep n ds) = (Rep, n, ds)
 
--- UnboundVarE
--- WildP

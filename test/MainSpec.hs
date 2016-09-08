@@ -177,8 +177,8 @@ spec = do
 
       return ()
 
-  describe "idiona" $ do
-    specify "idiomatic module support utils" $ do
+  describe "idiomatic module support" $ do
+    specify "utils" $ do
       -- (convertDepsViaTuple (Dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
       (tuplePattern (Dep "a" []) $> pprint) `shouldBe` "a"
       (tuplePattern (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "(a, b)"
@@ -193,7 +193,7 @@ spec = do
 
     -- [x] TODO: warn or error if override didn't match anything
     --           e.g. compare before with after to check for EQ
-    specify "idiomatic module support" $ do
+    specify "the real deal" $ do
       $(assemble testIdiomaticModuleD) `shouldBe` 23
       $( testIdiomaticModuleD
         $> override "testIdimoaticImport" "testIdiomaticImportMock"
@@ -208,7 +208,7 @@ spec = do
         $> override "testIdimoaticImport" "a"
         $> assemble) `shouldBe` 5
 
-    specify "" $ do
+    specify "less clumsy, requires more imports though" $ do
       let
         aD = Dep "a" []
         a = 2
