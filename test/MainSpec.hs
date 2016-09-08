@@ -14,6 +14,7 @@ import Data.Time
 import Data.IORef
 import Data.String.Utils
 import Common
+import Control.Exception (evaluate)
 
 inj
 testIdiomaticImportMock = 44
@@ -47,9 +48,11 @@ spec = do
 
       override "a" "b" (Dep "a" []) `shouldBe` Rep "b" []
       override "a" "c" (Dep "a" []) `shouldBe` Rep "c" []
-      override "b" "c" (Dep "a" []) `shouldBe` Dep "a" []
+      -- override "b" "c" (Dep "a" []) `shouldBe` Dep "a" []
+      evaluate (override "b" "c" (Dep "a" [])) `shouldThrow` anyException
 
-      override "x" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Dep "a" []])
+      -- override "x" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Dep "a" []])
+      evaluate (override "x" "c" (Dep "b" [Dep "a" []])) `shouldThrow` anyException
       override "b" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Rep "c" [Dep "a" []])
       override "a" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Rep "c" []])
 
@@ -188,7 +191,7 @@ spec = do
       (convertDepsViaTuple (Dep "a" [Rep "b" []]) $> pprint) `shouldBe`
         "let (a, _) = aT\n in a b"
 
-    -- [ ] TODO: warn or error if override didn't match anything
+    -- [x] TODO: warn or error if override didn't match anything
     --           e.g. compare before with after to check for EQ
     specify "idiomatic module support" $ do
       $(assemble testIdiomaticModuleD) `shouldBe` 23
