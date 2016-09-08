@@ -1,6 +1,9 @@
 module MainSpec where
 
-import Test.Hspec
+import Test.Hspec hiding (specify)
+import qualified Test.Hspec as Hspec (specify)
+import Data.List
+
 import Language.Haskell.TH
 import DI
 import SimpleDefs
@@ -12,14 +15,17 @@ import Data.IORef
 import Data.String.Utils
 import Common
 
+inj
+testIdiomaticImportMock = 44
+
 spec = do
   describe "" $ do
-    specify "mapDeps" $ do
+    specify "mapDepNames" $ do
 
       let l x = Dep x []
 
-      mapDeps (const "2" ) (Dep "1" []) `shouldBe` (Dep "2" [])
-      mapDeps (const 2) (Dep "1" []) `shouldBe` (Dep 2 [])
+      mapDepNames (const "2" ) (Dep "1" []) `shouldBe` (Dep "2" [])
+      mapDepNames (const 2) (Dep "1" []) `shouldBe` (Dep 2 [])
 
 
     specify "convertDepsToExp" $ do
@@ -39,15 +45,15 @@ spec = do
 
     specify "override fn" $ do
 
-      override "a" "b" (Dep "a" []) `shouldBe` Dep "b" []
-      override "a" "c" (Dep "a" []) `shouldBe` Dep "c" []
+      override "a" "b" (Dep "a" []) `shouldBe` Rep "b" []
+      override "a" "c" (Dep "a" []) `shouldBe` Rep "c" []
       override "b" "c" (Dep "a" []) `shouldBe` Dep "a" []
 
       override "x" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Dep "a" []])
-      override "b" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "c" [Dep "a" []])
-      override "a" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Dep "c" []])
+      override "b" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Rep "c" [Dep "a" []])
+      override "a" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Rep "c" []])
 
-      override "a" "c" (Dep "b" [Dep "a" [], Dep "a" []]) `shouldBe` (Dep "b" [Dep "c" [], Dep "c" []])
+      override "a" "c" (Dep "b" [Dep "a" [], Dep "a" []]) `shouldBe` (Dep "b" [Rep "c" [], Rep "c" []])
 
 
     specify "assemble" $ do
@@ -76,9 +82,9 @@ spec = do
     specify "module support" $ do
       $(assemble $ testModuleD) `shouldBe` 12
 
-    specify "qualified names" $ do
-      $(assemble $ Dep "Prelude.id" []) 1 `shouldBe` 1
-      $(assemble $ Dep "Prelude.*" []) 2 3 `shouldBe` 6
+    -- specify "qualified names" $ do
+    --   $(assemble $ Dep "Prelude.id" []) 1 `shouldBe` 1
+    --   $(assemble $ Dep "Prelude.*" []) 2 3 `shouldBe` 6
 
 
     specify "code that is more real-life" $ do
@@ -87,7 +93,9 @@ spec = do
       mockConsole <- newIORef []
       cTime <- newIORef $ parseTime "2016-01-01 14:00:00"
       let
+        -- $(inj)
         putStrLnMockD = Dep "putStrLnMock" []
+        putStrLnMockT = putStrLnMock
         putStrLnMock a = modifyIORef mockConsole (a :)
         
         -- readMockConsole = readIORef mockConsole >>= fmap reverse 
@@ -95,7 +103,9 @@ spec = do
           readIORef mockConsole >>= (reverse .> return) 
           -- readIORef mockConsole $> (fmap reverse) 
 
+        -- $(inj)
         getCurrentTimeMockD = Dep "getCurrentTimeMock" []
+        getCurrentTimeMockT = getCurrentTimeMock
         getCurrentTimeMock = readIORef cTime
 
         setUpThen cont = do
@@ -145,19 +155,22 @@ spec = do
       a
       -- parseLineToDeps "foo = 1" `shouldBe` Dep "foo" []
 
-      parseLineToDeps "a = 1" `shouldBe` ("a", "aD", [])
-      parseLineToDeps "b = 1" `shouldBe` ("b", "bD", [])
-      parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"])
+      parseLineToDeps "a = 1" `shouldBe` ("a", "aD", [], [])
+      parseLineToDeps "b = 1" `shouldBe` ("b", "bD", [], [])
+      parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"], ["a"])
 
-      (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>= (`shouldBe` "asdD = Dep \"asd\" []") 
-      (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>= (`shouldBe` "asdD = Dep \"asd\" [aD]") 
+      (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>= 
+        (`shouldBe` "asdD = Dep \"asd\" []\nasdT = (asd)")
+      (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>= 
+        (`shouldBe` "asdD = Dep \"asd\" [aD]\nasdT = (asd, a)")
       
-      (injLeaf "asdasd" $> runQ $> fmap pprint) >>= (`shouldBe` "asdasdD = Dep \"asdasd\" []") 
+      (injLeaf "asdasd" $> runQ $> fmap pprint) >>= 
+        (`shouldSatisfy` ("asdasdD = Dep \"asdasd\" []" `isPrefixOf`)) 
 
       return ()
 
-    
-    specify "idiomatic module support" $ do
+  describe "idiona" $ do 
+    specify "idiomatic module support utils" $ do
       -- (convertDepsViaTuple (Dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
       (tuplePattern (Dep "a" []) $> pprint) `shouldBe` "a"
       (tuplePattern (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "(a, b)"
@@ -165,17 +178,19 @@ spec = do
       (convertDepsViaTuple (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "let (a, b) = aT\n in a b"
       (convertDepsViaTuple (Dep "a" [Dep "b" [Dep "d" []], Dep "c" []]) $> pprint) 
         `shouldBe` "let (a, (b, d), c) = aT\n in a (b d) c"
-      
-    -- specify "idiomatic module support" $ do
-    --   $(assemble testIdiomaticModuleD) `shouldBe` 3
+      (convertDepsViaTuple (Rep "a" []) $> pprint) `shouldBe` "let _ = aT\n in a"
+      (convertDepsViaTuple (Dep "a" [Rep "b" []]) $> pprint) `shouldBe` "let (a, _) = aT\n in a b"
+    
+    -- [ ] TODO: warn or error if override didn't match anything  
+    --           e.g. compare before with after to check for EQ
+    specify "idiomatic module support" $ do
+      $(assemble testIdiomaticModuleD) `shouldBe` 23
+      $( testIdiomaticModuleD
+        $> override "testIdimoaticImport" "testIdiomaticImportMock"
+        $> assemble) `shouldBe` 48
 
--- convertDepsViaTuple (Dep n []) = [|let $n = $(n ++ "T") in $n|]
-convertDepsViaTuple deps@(Dep n _) = LetE 
-  [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ n ++ "T")) []] 
-  (convertDepsToExp deps)
-
--- convertDepsViaTuple (Dep n [Dep g]) = LetE [ValD (VarP a) (NormalB (VarE $ mkName $ n ++ "T")) []] (VarE a)
--- LetE [ValD (TupP [VarP a_17,VarP b_18]) (NormalB (VarE aaaaT_1627464774)) []] (AppE (VarE a_17) (VarE b_18))
--- tuplePattern (Dep n []) = TupP [VarP $ mkName n]
-tuplePattern (Dep n []) = VarP $ mkName n
-tuplePattern (Dep n ds) = TupP $ (VarP $ mkName n) : map tuplePattern ds
+-- runOnlyPrefix = ["!"]
+runOnlyPrefix = [""]
+specify a = if (any (`isPrefixOf` a) runOnlyPrefix)
+  then Hspec.specify a
+  else (\_->return ())
