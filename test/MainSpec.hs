@@ -168,9 +168,9 @@ spec = do
       parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"], ["a"])
 
       (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>=
-        (`shouldBe` "asdD = Dep \"asd\" []\nasdT = (asd)")
+        (`shouldSatisfy` ("asdD = Dep \"asd\" []" `isPrefixOf`))
       (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>=
-        (`shouldBe` "asdD = Dep \"asd\" [aD]\nasdT = (asd, a)")
+        (`shouldSatisfy` ("asdD = Dep \"asd\" [aD]" `isPrefixOf`))
 
       (injLeaf "asdasd" $> runQ $> fmap pprint) >>=
         (`shouldSatisfy` ("asdasdD = Dep \"asdasd\" []" `isPrefixOf`))
@@ -215,6 +215,10 @@ spec = do
       $( testIdiomaticModuleD
         $> override "testIdimoaticImport" "a"
         $> assembleSimple) `shouldBe` 6
+
+    specify "make sure that inj also declares a value that does not require `assemble`" $ do
+      testIdiomaticModuleI `shouldBe` 23
+
 
 -- runOnlyPrefix = ["!"]
 runOnlyPrefix = [""]
