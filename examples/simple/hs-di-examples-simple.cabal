@@ -1,0 +1,31 @@
+name:                hs-di-examples-simple
+version:             0.1.0.0
+synopsis:            Simple project template from stack
+description:         Please see README.md
+homepage:            https://github.com/wizek/hs-di
+license:             BSD3
+author:              Milán Nagy
+maintainer:          123.wizek@gmail.com
+copyright:           2016 Milán Nagy
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      .
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+  ghc-options:
+    -ddump-splices
+    -ddump-to-file
+
+test-suite hs-di-examples-simple-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      .
+  main-is:             Spec.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , hs-di
+  ghc-options:
+    -ddump-splices
+    -ddump-to-file

@@ -6,6 +6,12 @@ A promising Dependency Injection system for Haskell.
 
 The main motivation behind this project is to make it very easy to mock dependencies of functions for unit testing, even if they are nested many levels deep.
 
+Another motivation of mine was to find a technique that works entirely at compile time, having the following benefits:
+
+- compile-time type checking of all dependencies and wether they fit together
+- no run-time performance penalty
+- no run-time Dependency Injection related errors
+
 # Example
 
 A motivating example:
@@ -55,6 +61,7 @@ OK "Hello World!"
 OK "Hello Dear Reader!"
 ```
 
+*Note: `noun` is being overwritten while we are testing `statement`, which is not an immediate dependency but rather at the depth of 2.*
 
 # How
 

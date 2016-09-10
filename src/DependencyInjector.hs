@@ -96,7 +96,7 @@ injDecs (name, nameD, depsD, deps) =
   [d|
     $identD = $consDep $nameStr $listLiteral
     $(return $ VarP $ mkName $ nameT $ name) =
-      $(return $ TupE $ map (VarE . mkName) (name : deps))
+      $(return $ TupE $ map (VarE . mkName) (name : map (++ "T") deps))
     $(return $ VarP $ mkName $ name ++ "A") =
       $(return $ convertDepsToExp $ Dep name (map (mapDepNames (++ "A")) (map (flip Dep []) deps)))
     $(return $ VarP $ mkName $ (++ "I") $ name) =
