@@ -2,6 +2,62 @@
 
 A promising Dependency Injection system for Haskell.
 
+# Why
+
+The main motivation behind this project is to make it very easy to mock dependencies of functions for unit testing, even if they are nested many levels deep.
+
+# Example
+
+A motivating example:
+
+```haskell
+-- Lib.hs
+{-# language TemplateHaskell #-}
+
+module Lib where
+
+import DI
+
+inj
+noun = "World"
+
+inj
+sentence noun = "Hello " ++ noun
+
+inj
+statement sentence = sentence ++ "!"
+```
+
+```haskell
+-- Spec.hs
+{-# language TemplateHaskell #-}
+
+import DI
+import Lib
+
+inj
+nounMock = "Dear Reader" 
+
+main = do
+  $(assemble statementD) `shouldBe` "Hello World!"
+  $(assemble $ override "noun" "nounMock" $ statementD) `shouldBe` "Hello Dear Reader!"
+
+-- assertion function
+shouldBe = shouldBeF show
+shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
+                            | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
+```
+
+Which when executed should output:
+
+```
+OK "Hello World!"
+OK "Hello Dear Reader!"
+```
+
+
+# How
+
 In this project I am trying to emulate the manual assembly
 of deeply nested and injected dependencies with the help of TemplateHaskell
 and config compile-time dependency graphs.
