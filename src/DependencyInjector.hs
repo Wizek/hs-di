@@ -97,8 +97,10 @@ injDecs (name, nameD, depsD, deps) =
     $identD = $consDep $nameStr $listLiteral
     $(return $ VarP $ mkName $ nameT $ name) =
       $(return $ TupE $ map (VarE . mkName) (name : deps))
-    $(return $ VarP $ mkName $ name ++ "I") =
-      $(return $ convertDepsToExp $ Dep name (map (mapDepNames (++ "I")) (map (flip Dep []) deps)))
+    $(return $ VarP $ mkName $ name ++ "A") =
+      $(return $ convertDepsToExp $ Dep name (map (mapDepNames (++ "A")) (map (flip Dep []) deps)))
+    $(return $ VarP $ mkName $ (++ "I") $ name) =
+      $(return $ VarE $ mkName $ name)
   |]
   where
     identD :: Q Pat
@@ -137,9 +139,6 @@ getDep (Rep n ds) = (Rep, n, ds)
 
 -- functions for injG
 
-assembleG :: Deps -> Q Exp
-assembleG = convertDepsViaTupleG .> return
-
 injG :: Q [Dec]
 injG = injectableIG getContentOfNextLine
 injectableIG getContentOfNextLine = do
@@ -170,17 +169,15 @@ injDecsG (name, nameI, nameD, depsD, deps) =
       $(return $ TupE $ map (mkName .> VarE) ((name ++ "I") : map (++ "T") deps))
     $(return $ VarP $ mkName $ name) =
       $(return $ convertDepsToExp $ Dep nameI (map (flip Dep []) deps))
+    $(return $ VarP $ mkName $ name ++ "A") =
+      $(return $ VarE $ mkName $ name)
   |]
   where
     identD :: Q Pat
     identD = return $ VarP $ mkName nameD
     nameStr :: Q Exp
-    nameStr = nameI $> StringL $> LitE $> return
+    nameStr = name $> StringL $> LitE $> return
     listLiteral :: Q Exp
     listLiteral = return $ ListE $ map (mkName .> VarE) depsD
     consDep :: Q Exp
     consDep = return $ ConE $ mkName "Dep"
-
-convertDepsViaTupleG deps | n <- getDepName deps = LetE
-  [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ (++ "T") $ removeIname $ n )) []]
-  (convertDepsToExp deps)

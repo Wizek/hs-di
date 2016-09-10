@@ -13,4 +13,3 @@ injG
 dI b = 3 + b
 
 c = b + 1
-

@@ -218,7 +218,7 @@ spec = do
         $> assembleSimple) `shouldBe` 6
 
     specify "make sure that inj also declares a value that does not require `assemble`" $ do
-      testIdiomaticModuleI `shouldBe` 23
+      testIdiomaticModuleA `shouldBe` 23
 
 
 -- runOnlyPrefix = ["!"]

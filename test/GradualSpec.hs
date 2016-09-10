@@ -32,15 +32,11 @@ spec = do
       G.a `shouldBe` 1
       G.b `shouldBe` 2
       G.c `shouldBe` 3
-      $( bD $> assembleG ) `shouldBe` 2
-      $( bD $> override "aI" "aMock" $> assembleG ) `shouldBe` 34
-      $( dD $> override "aI" "aMock" $> assembleG ) `shouldBe` 37
-    --   $(assemble testIdiomaticModuleD) `shouldBe` 23
-    --   $( testIdiomaticModuleD
-    --     $> override "testIdimoaticImport" "testIdiomaticImportMock"
-    --     $> assemble) `shouldBe` 48
+      $( bD $> assemble ) `shouldBe` 2
+      $( bD $> override "a" "aMock" $> assemble ) `shouldBe` 34
+      $( dD $> override "a" "aMock" $> assemble ) `shouldBe` 37
+      G.aA `shouldBe` 1
 
--- runOnlyPrefix = ["!"]
 runOnlyPrefix = [""]
 specify a = if (any (`isPrefixOf` a) runOnlyPrefix)
   then Hspec.specify a
