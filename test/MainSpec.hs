@@ -14,6 +14,7 @@ import Data.Time
 import Data.IORef
 import Data.String.Utils
 import Common
+import qualified GradualSpec as G ()
 import Control.Exception (evaluate)
 
 inj

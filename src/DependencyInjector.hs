@@ -79,10 +79,9 @@ parseLineToDeps line = (name, nameD, deps, args)
   deps = map d args
   d n = n ++ "D"
 
-inj = injectable
 
-injectable :: Q [Dec]
-injectable = injectableI getContentOfNextLine
+inj :: Q [Dec]
+inj = injectableI getContentOfNextLine
 injectableI getContentOfNextLine = do
   getContentOfNextLine
   >>= parseLineToDeps .> return
@@ -134,3 +133,54 @@ getDepDs   (getDep -> (_, _, ds)) = ds
 getDep (Dep n ds) = (Dep, n, ds)
 getDep (Rep n ds) = (Rep, n, ds)
 
+
+
+-- functions for injG
+
+assembleG :: Deps -> Q Exp
+assembleG = convertDepsViaTupleG .> return
+
+injG :: Q [Dec]
+injG = injectableIG getContentOfNextLine
+injectableIG getContentOfNextLine = do
+  getContentOfNextLine
+  >>= parseLineToDepsG .> return
+  >>= injDecsG
+
+-- parseLineToDepsG :: String -> (String, String, [String], [String])
+parseLineToDepsG line = (name, nameI, nameD, deps, args)
+  where
+  ws = words line
+  name = nameI $> removeIname
+  nameI = head ws
+  args = takeWhile (/= "=") $ tail ws
+  nameD = d name
+  deps = map d args
+  d n = n ++ "D"
+
+removeIname n = n $> reverse .> f .> reverse
+  where
+  f ('I':(a@(_:_))) = a
+  f _ = error $ "Name must end with `I` suffix. e.g. `fooI` or `barI`: " ++ n
+
+injDecsG (name, nameI, nameD, depsD, deps) =
+  [d|
+    $identD = $consDep $nameStr $listLiteral :: Deps
+    $(return $ VarP $ mkName $ nameT $ name) =
+      $(return $ TupE $ map (mkName .> VarE) ((name ++ "I") : map (++ "T") deps))
+    $(return $ VarP $ mkName $ name) =
+      $(return $ convertDepsToExp $ Dep nameI (map (flip Dep []) deps))
+  |]
+  where
+    identD :: Q Pat
+    identD = return $ VarP $ mkName nameD
+    nameStr :: Q Exp
+    nameStr = nameI $> StringL $> LitE $> return
+    listLiteral :: Q Exp
+    listLiteral = return $ ListE $ map (mkName .> VarE) depsD
+    consDep :: Q Exp
+    consDep = return $ ConE $ mkName "Dep"
+
+convertDepsViaTupleG deps | n <- getDepName deps = LetE
+  [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ (++ "T") $ removeIname $ n )) []]
+  (convertDepsToExp deps)
