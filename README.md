@@ -69,13 +69,75 @@ In this project I am trying to emulate the manual assembly
 of deeply nested and injected dependencies with the help of TemplateHaskell
 and config compile-time dependency graphs.
 
-## To install
+To go into more details, this is what happens behind the scenes in the above example:
 
-To try it out, you may run its tests:
+```haskell
+Lib.hs:8:1-3: Splicing declarations
+    inj
+  ======>
+    nounD = Dep "noun" []
+    nounT = (noun)
+    nounA = noun
+    nounI = noun
+Lib.hs:11:1-3: Splicing declarations
+    inj
+  ======>
+    sentenceD = Dep "sentence" [nounD]
+    sentenceT = (sentence, nounT)
+    sentenceA = sentence nounA
+    sentenceI = sentence
+Lib.hs:14:1-3: Splicing declarations
+    inj
+  ======>
+    statementD = Dep "statement" [sentenceD]
+    statementT = (statement, sentenceT)
+    statementA = statement sentenceA
+    statementI = statement
+```
+```haskell
+Spec.hs:7:1-3: Splicing declarations
+    inj
+  ======>
+    nounMockD = Dep "nounMock" []
+    nounMockT = (nounMock)
+    nounMockA = nounMock
+    nounMockI = nounMock
+Spec.hs:11:5-23: Splicing expression
+    assemble statementD
+  ======>
+    let (statement, (sentence, noun)) = statementT
+    in statement (sentence noun)
+Spec.hs:12:5-54: Splicing expression
+    assemble $ override "noun" "nounMock" $ statementD
+  ======>
+    let (statement, (sentence, _)) = statementT
+    in statement (sentence nounMock)
+```
+
+A couple things to note:
+
+- You may be wondering what the suffix letters mean in the declarations.
+  
+  You don't have to concern yourself with them, it's part of the internal hidden API of the DI framework by design.
+  
+  (If you are curious however, they stand for "Dependency definitions/`Defs`", "Tuple", "Assembled", and "Injectable", respectively.)
+- As you can see, at the end of the day, all this machinery achieves pretty much the same what a developer would do by hand: `statement (sentence noun)`
+  
+  The beauty, however, is that this doesn't have to be done by hand, as it would become immensly tideous and time-consuming as soon as we start to handle more than a couple dependencies.
+- Mocking is equally elegant:
+  
+  `let (statement, (sentence, _)) = statementT in statement (sentence nounMock)` 
+  
+  (translated from `$(assemble $ override "noun" "nounMock" $ statementD)`)
+
+
+## To try
+
+To execute and experiment with modifying the above example:
 
 ```shell
 git clone git@github.com:Wizek/hs-di.git
-cd hs-di
+cd hs-di/examples/simple
 stack test
 ```
 
