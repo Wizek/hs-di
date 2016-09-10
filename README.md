@@ -8,7 +8,7 @@ The main motivation behind this project is to make it very easy to mock dependen
 
 Another motivation of mine was to find a technique that works entirely at compile time, having the following benefits:
 
-- compile-time type checking of all dependencies and wether they fit together
+- compile-time type checking of all dependencies and whether they fit together
 - no run-time performance penalty
 - no run-time Dependency Injection related errors
 
@@ -61,13 +61,13 @@ OK "Hello World!"
 OK "Hello Dear Reader!"
 ```
 
-*Note: `noun` is being overwritten while we are testing `statement`, which is not an immediate dependency but rather at the depth of 2.*
+*Observe*: In the second assertion, `noun` is being overridden while we are testing `statement`. `noun` is not an immediate dependency of `statement` but a dependency at 2 levels deep.
 
 # How
 
 In this project I am trying to emulate the manual assembly
 of deeply nested and injected dependencies with the help of TemplateHaskell
-and config compile-time dependency graphs.
+and compile-time dependency graphs as configuration.
 
 To go into more details, this is what happens behind the scenes in the above example:
 
@@ -130,10 +130,11 @@ A couple things to note:
   
   (translated from `$(assemble $ override "noun" "nounMock" $ statementD)`)
 
+See more advanced example below.
 
 ## To try
 
-To execute and experiment with modifying the above example:
+To execute the above example:
 
 ```shell
 git clone git@github.com:Wizek/hs-di.git
@@ -141,31 +142,69 @@ cd hs-di/examples/simple
 stack test
 ```
 
+You may also experiment with modifying the files in `hs-di/examples/simple` then re-running `stack test` to get an intuitive understanding of how this library works.
+
+## More advanced example
+
+While the following code may not be the most elegant or useful, it at least shows the power of dependency injection when it comes to mocking and testing IO code that deals with `putStrLn` and `getCurrentTime` in a fully deterministic way.
+
+```haskell
+inj
+makeTimer putStrLn getCurrentTime = liftIO $ do
+  prevTime <- newIORef Nothing
+  return $ liftIO $ do
+    pTime <- readIORef prevTime
+    time <- getCurrentTime
+    writeIORef prevTime $ Just time
+    case pTime of
+      Nothing -> putStrLn $ show time
+      Just a  -> putStrLn $ show time ++ ", diff: " ++ (show $ diffUTCTime time a)
+```
+
+*source: https://github.com/Wizek/hs-di/blob/v0.2.1/test/NotSoEasyToTestCode.hs#L17-L26* 
+
+```haskell
+writeIORef mockConsole []
+writeIORef cTime $ parseTime "2016-01-01 14:00:00"
+timer <- $(makeTimerD
+    $> override "putStrLn" "putStrLnMock"
+    $> override "getCurrentTime" "getCurrentTimeMock"
+    $> assemble
+  )
+
+writeIORef cTime $ parseTime "2016-01-01 14:00:00"
+timer
+writeIORef cTime $ parseTime "2016-01-01 14:00:01"
+timer
+readMockConsole >>= (`shouldBe`
+  [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"])
+```
+
+*excerpt from: https://github.com/Wizek/hs-di/blob/v0.2.1/test/MainSpec.hs#L95-L149*
+
 ### Pros and cons of this approach
 
   - `(+)` Supports values to be injected
   - `(+)` Supports functions to be injected
-  - `(++)` Supports overriding of arbitrary number and depth of dependencies
-  - `(++)` Compile time type checking (despites strings being used, those too are checked)
+  - `(+2)` Supports overriding of arbitrary number and depth of dependencies
+  - `(+2)` Compile time type checking (despites strings being used, those too are checked)
   - `(+)` Supports type variables
   - `(+)` Theoretically also supports surgically only overriding some subsets of dependencies
-
   - `(+)` Emulates how a human would do DI by hand, and does the hard work automatically
-
   - `(+)` Some module support
-
-    - `(-0.5)` The module support is not yet fully perfect
-
+    - `(-.5)` The module support is not yet fully perfect
+    - `(-.5)` Due to limitations of Template Haskell declaration splices, "variable not in scope" errors can pop up that are annoying. Although it is in theory possible to work around these, and it is planned for a later release.
   - `(?)` How is performance impacted? Does GHC notice `f (g x) (g x)`?
 
-### Todos
+### Todo checklist
 
-- [x] TODO: make multiple argumetns work
-- [x] TODO: Simplify Deps
-- [x] TODO: reorder arguments of override
-- [x] TODO: try with some real-life code
-- [x] TODO: Write quasi quoter or TH splicer that writes the `Deps` definitions too
-- [x] TODO: look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
-- [ ] TODO: have GHC support Dec TH splices in let bindings: https://ghc.haskell.org/trac/ghc/ticket/9880#comment:7
+- [x] make multiple arguments work
+- [x] Simplify Deps
+- [x] reorder arguments of override
+- [x] try with some real-life code
+- [x] Write quasi quoter or TH splicer that writes the `Deps` definitions too
+- [x] look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
+- [ ] work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
+- [ ] have GHC support Dec TH splices in let bindings: https://ghc.haskell.org/trac/ghc/ticket/9880#comment:7
       Which could make overriding dependencies with mocks more pleasant
-- [ ] TODO: have GHC lift stage restriction
+- [ ] have GHC lift stage restriction
