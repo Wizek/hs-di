@@ -60,9 +60,9 @@ test-suite hs-di-test
     -- appropriate for a distributed package. Alternatively, if you want to use this,
     -- make it conditional based on a Cabal configuration flag (with 'manual: True'
     -- and 'default: False') and enable that flag during development.
+    -- -ddump-splices
+    -- -ddump-to-file
 
-    -ddump-splices
-    -ddump-to-file
     -- -fforce-recomp
   default-language:    Haskell2010
   default-extensions:
