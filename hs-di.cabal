@@ -53,7 +53,14 @@ test-suite hs-di-test
     -rtsopts
     -with-rtsopts=-N
     -O0
-    -fdefer-type-errors
+
+    -- -fdefer-type-errors
+    -- TODO:
+    -- 'ghc-options: -fdefer-type-errors' is fine during development but is not
+    -- appropriate for a distributed package. Alternatively, if you want to use this,
+    -- make it conditional based on a Cabal configuration flag (with 'manual: True'
+    -- and 'default: False') and enable that flag during development.
+
     -ddump-splices
     -ddump-to-file
     -- -fforce-recomp
