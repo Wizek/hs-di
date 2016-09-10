@@ -1,5 +1,5 @@
 name:                hs-di
-version:             0.2.0
+version:             0.2.1
 synopsis:            Dependency Injection library for Haskell
 description:         Dependency Injection library for Haskell to allow powerful unit testing and mocking (compile-time type-checked)
 homepage:            https://github.com/Wizek/hs-di#readme
@@ -10,7 +10,7 @@ maintainer:          123.wizek@gmail.com
 copyright:           2016 Milan Nagy
 category:            Web
 build-type:          Simple
--- extra-source-files:
+extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
