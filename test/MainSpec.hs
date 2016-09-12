@@ -252,6 +252,10 @@ spec = do
       a `shouldBe` 1
       b `shouldBe` 2
 
+    specify "override with simple expressions" $ do
+      $(assemble $ override "foo" "33" barD) `shouldBe` 34
+      $(assemble $ override "foo" "1 + 2" barD) `shouldBe` 4
+
 
     -- specify "override a non-leaf" $ do
     --   -- pending

@@ -8,6 +8,8 @@ import Control.Monad
 import Language.Haskell.TH
 import Common
 import Data.List as L
+import Language.Haskell.Meta (parseExp)
+import Data.Either
 
 assemble :: Deps -> Q Exp
 assemble = convertDepsViaTuple .> return
@@ -17,9 +19,11 @@ assembleSimple = convertDepsToExp .> return
 
 convertDepsToExp :: Deps -> Exp
 convertDepsToExp = id
-  .> mapDepNames (mkName .> VarE)
+  .> mapDepNames (parseExp .> either errF id)
   -- .> mapChildren reverse
   .> convertDepsToExp'
+  where
+    errF = ("Error parsing: " ++) .> error
 
 convertDepsToExp' :: DepsG Exp -> Exp
 convertDepsToExp' (getDep -> (_, name,   [])) = name
