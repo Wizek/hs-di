@@ -253,6 +253,10 @@ spec = do
       b `shouldBe` 2
 
 
+    -- specify "override a non-leaf" $ do
+    --   -- pending
+    -- specify "override, change deps" $ do
+    --   pending
 
 -- runOnlyPrefix = ["!"]
 runOnlyPrefix = [""]
