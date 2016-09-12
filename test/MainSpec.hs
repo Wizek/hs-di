@@ -230,30 +230,27 @@ spec = do
     specify "make sure that inj also declares a value that does not require `assemble`" $ do
       testIdiomaticModuleA `shouldBe` 23
 
-    specify "" $ do
+    specify "Support for type declaration be in between inj and fn decl" $ do
       let f (n, _, _, _, ds)  = (n, ds)
-      let
-        test fun f n = do
-          ([text|
-            aI b = 1
-          |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-          ("\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-          ("\n\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-          ([text|
-            aI :: Int
-            aI b = 1
-          |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-          -- ("" $> parseLineToDepsG $> f ) `shouldBe` ("", [])
-          ("" $> parseLineToDepsG $> f $> force $> evaluate) `shouldThrow` anyException
-          ([text|
-            aI :: x => Int
-            aI b = 1
-          |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
 
-      test parseLineToDepsG (let f (n, _, _, _, ds)  = (n, ds) in f) "a"
+      ([text|
+        aI b = 1
+      |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+      ("\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+      ("\n\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+      ([text|
+        aI :: Int
+        aI b = 1
+      |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+      -- ("" $> parseLineToDepsG $> f ) `shouldBe` ("", [])
+      ("" $> parseLineToDepsG $> f $> force $> evaluate) `shouldThrow` anyException
+      ([text|
+        aI :: x => Int
+        aI b = 1
+      |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+
       a `shouldBe` 1
       b `shouldBe` 2
-      -- test parseLineToDeps (let f (n, _, _, ds)  = (n, ds) in f) "aI"
 
 
 
