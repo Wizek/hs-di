@@ -7,6 +7,7 @@ module DependencyInjector where
 import Control.Monad
 import Language.Haskell.TH
 import Common
+import Data.List as L
 
 assemble :: Deps -> Q Exp
 assemble = convertDepsViaTuple .> return
@@ -62,10 +63,25 @@ getContentOfNextLine = do
     file <- readFile $ loc_filename loc
     let
       (start, _) = loc_start loc
-      l = file $> lines $> drop (start) $> head
+      l = file $> lines $> drop start $> head
     return l
-
   return line
+
+getContentOfNextLines :: Q String
+getContentOfNextLines = do
+  loc <- location
+  -- runIO $ print loc
+  line <- runIO $ do
+    file <- readFile $ loc_filename loc
+    let
+      (start, _) = loc_start loc
+      l = file $> lines $> drop start $> take 2 $> unlines
+    return l
+  return line
+
+getContentOfFollowingFnLine :: Q String
+getContentOfFollowingFnLine =
+  getContentOfNextLines >>= findFirstFnDecLine .> return
 
 getContentOfNextLineLit = getContentOfNextLine $> fmap (StringL .> LitE)
 
@@ -80,12 +96,15 @@ parseLineToDeps line = (name, nameD, deps, args)
   d n = n ++ "D"
 
 
+
 inj :: Q [Dec]
-inj = injectableI getContentOfNextLine
-injectableI getContentOfNextLine = do
-  getContentOfNextLine
+inj = injI getContentOfFollowingFnLine
+injI getContentOfFollowingFnLine = do
+  getContentOfFollowingFnLine
   >>= parseLineToDeps .> return
   >>= injDecs
+
+injectableI = injI
 
 injLeaf = injectableLeaf
 
@@ -140,15 +159,16 @@ getDep (Rep n ds) = (Rep, n, ds)
 -- functions for injG
 
 injG :: Q [Dec]
-injG = injectableIG getContentOfNextLine
-injectableIG getContentOfNextLine = do
-  getContentOfNextLine
+injG = injectableIG getContentOfFollowingFnLine
+injectableIG getContentOfFollowingFnLine = do
+  getContentOfFollowingFnLine
   >>= parseLineToDepsG .> return
   >>= injDecsG
 
 -- parseLineToDepsG :: String -> (String, String, [String], [String])
-parseLineToDepsG line = (name, nameI, nameD, deps, args)
+parseLineToDepsG ls = (name, nameI, nameD, deps, args)
   where
+  line = findFirstFnDecLine ls
   ws = words line
   name = nameI $> removeIname
   nameI = head ws
@@ -156,6 +176,18 @@ parseLineToDepsG line = (name, nameI, nameD, deps, args)
   nameD = d name
   deps = map d args
   d n = n ++ "D"
+
+findFirstFnDecLine ls = ls
+  $> lines
+  $> L.find (("=" `L.isSubsequenceOf`) `andf` (("=>" `L.isSubsequenceOf`) .> not))
+  $> maybe (error $ "Couldn't find function definition: " ++ ls) id
+
+orf :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+orf f g x = f x || g x
+
+andf :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+andf f g x = f x && g x
+
 
 removeIname n = n $> reverse .> f .> reverse
   where

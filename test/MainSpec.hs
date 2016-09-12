@@ -16,9 +16,20 @@ import Data.String.Utils
 import Common
 import qualified GradualSpec as G ()
 import Control.Exception (evaluate)
+import NeatInterpolation
+import qualified Data.Text as T
+import Control.DeepSeq (force)
 
 inj
 testIdiomaticImportMock = 44
+
+inj
+a :: Int
+a = 1
+
+injG
+bI :: Int
+bI = 2
 
 spec = do
   specify "mapDepNames" $ do
@@ -218,6 +229,32 @@ spec = do
 
     specify "make sure that inj also declares a value that does not require `assemble`" $ do
       testIdiomaticModuleA `shouldBe` 23
+
+    specify "" $ do
+      let f (n, _, _, _, ds)  = (n, ds)
+      let
+        test fun f n = do
+          ([text|
+            aI b = 1
+          |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+          ("\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+          ("\n\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+          ([text|
+            aI :: Int
+            aI b = 1
+          |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+          -- ("" $> parseLineToDepsG $> f ) `shouldBe` ("", [])
+          ("" $> parseLineToDepsG $> f $> force $> evaluate) `shouldThrow` anyException
+          ([text|
+            aI :: x => Int
+            aI b = 1
+          |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+
+      test parseLineToDepsG (let f (n, _, _, _, ds)  = (n, ds) in f) "a"
+      a `shouldBe` 1
+      b `shouldBe` 2
+      -- test parseLineToDeps (let f (n, _, _, ds)  = (n, ds) in f) "aI"
+
 
 
 -- runOnlyPrefix = ["!"]

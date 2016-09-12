@@ -48,6 +48,10 @@ test-suite hs-di-test
     , time
     , MissingH
     , compose-ltr
+    , neat-interpolation
+    , text
+    , deepseq
+    , haskell-src-meta
   ghc-options:
     -threaded
     -rtsopts
@@ -67,6 +71,7 @@ test-suite hs-di-test
   default-language:    Haskell2010
   default-extensions:
     TemplateHaskell
+    QuasiQuotes
 
 source-repository head
   type:     git
