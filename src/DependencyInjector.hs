@@ -163,8 +163,8 @@ getDep (Rep n ds) = (Rep, n, ds)
 -- functions for injG
 
 injG :: Q [Dec]
-injG = injectableIG getContentOfFollowingFnLine
-injectableIG getContentOfFollowingFnLine = do
+injG = injIG getContentOfFollowingFnLine
+injIG getContentOfFollowingFnLine = do
   getContentOfFollowingFnLine
   >>= parseLineToDepsG .> return
   >>= injDecsG
@@ -217,3 +217,15 @@ injDecsG (name, nameI, nameD, depsD, deps) =
     listLiteral = return $ ListE $ map (mkName .> VarE) depsD
     consDep :: Q Exp
     consDep = return $ ConE $ mkName "Dep"
+
+injP :: Q Pat
+injP = injG >>= transposeDecsToPE .> fst .> return
+
+injE :: Q Exp
+injE = injG >>= transposeDecsToPE .> snd .> return
+
+transposeDecsToPE :: [Dec] -> (Pat, Exp)
+transposeDecsToPE decs = (pats, exps)
+  where
+  pats = TupP $ map (\(ValD p e _) -> p) decs
+  exps = TupE $ map (\(ValD p (NormalB e) _) -> e) decs

@@ -19,6 +19,7 @@ import Control.Exception (evaluate)
 import NeatInterpolation
 import qualified Data.Text as T
 import Control.DeepSeq (force)
+import Language.Haskell.Meta
 
 inj
 testIdiomaticImportMock = 44
@@ -256,9 +257,32 @@ spec = do
       $(assemble $ override "foo" "33" barD) `shouldBe` 34
       $(assemble $ override "foo" "1 + 2" barD) `shouldBe` 4
 
+    specify "transpose [Dec] to `(TupP [Pat], TupP [Exp])`" $ do
+      ("a = 1; b = 2" $> pd $> transposeDecsToPE $> fst)
+        `shouldBe` ("(a, b)" $> pp)
+
+      ("a = 1; b = 2" $> pd $> transposeDecsToPE $> snd)
+        `shouldBe` ("(1, 2)" $> pe)
+
+    -- -- [ ] TODO: Overcome GHC stage restriction:
+    -- --   home/wizek/sandbox/exp-xml/exp-xml/hs-di/test/MainSpec.hs:289:18:
+    -- --       GHC stage restriction:
+    -- --         ‘aD’ is used in a top-level splice or annotation,
+    -- --         and must be imported, not defined locally
+    -- --       In the splice: $(assemble aD)
+
+    -- specify "allow defining injectable value at non-top-level" $ do
+    --   let
+    --     $(injP) = $(injE)
+    --     aI = 453
+
+    --   $(assemble aD) `shouldBe` 453
+
+
 
     -- specify "override a non-leaf" $ do
     --   -- pending
+
     -- specify "override, change deps" $ do
     --   pending
 
@@ -267,3 +291,8 @@ runOnlyPrefix = [""]
 specify a = if (any (`isPrefixOf` a) runOnlyPrefix)
   then Hspec.specify a
   else (\_->return ())
+
+pd = parseDecs .> fromRight
+pp = parsePat .> fromRight
+pe = parseExp .> fromRight
+fromRight (Right a) = a
