@@ -165,16 +165,16 @@ timer <- $(makeTimerD
     $> assemble
   )
 
-readMockConsole >>= (`shouldBe` [])
+readMockConsole `shouldReturn` []
 
 writeIORef cTime $ parseTime "2016-01-01 14:00:00"
 timer
-readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC"])
+readMockConsole `shouldReturn` ["2016-01-01 14:00:00 UTC"]
 
 writeIORef cTime $ parseTime "2016-01-01 14:00:01"
 timer
-readMockConsole >>= (`shouldBe`
-  [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"])
+readMockConsole `shouldReturn`
+  ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"]
 ```
 
 *excerpt from: https://github.com/Wizek/hs-di/blob/v0.2.1/test/MainSpec.hs#L95-L149*
