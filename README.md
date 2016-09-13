@@ -159,16 +159,18 @@ makeTimer putStrLn getCurrentTime = liftIO $ do
 *source: https://github.com/Wizek/hs-di/blob/v0.2.1/test/NotSoEasyToTestCode.hs#L17-L26* 
 
 ```haskell
-writeIORef mockConsole []
-writeIORef cTime $ parseTime "2016-01-01 14:00:00"
 timer <- $(makeTimerD
     $> override "putStrLn" "putStrLnMock"
     $> override "getCurrentTime" "getCurrentTimeMock"
     $> assemble
   )
 
+readMockConsole >>= (`shouldBe` [])
+
 writeIORef cTime $ parseTime "2016-01-01 14:00:00"
 timer
+readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC"])
+
 writeIORef cTime $ parseTime "2016-01-01 14:00:01"
 timer
 readMockConsole >>= (`shouldBe`
