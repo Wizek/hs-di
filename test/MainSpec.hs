@@ -20,6 +20,7 @@ import NeatInterpolation
 import qualified Data.Text as T
 import Control.DeepSeq (force)
 import Language.Haskell.Meta
+import Assert
 
 inj
 testIdiomaticImportMock = 44
@@ -231,28 +232,39 @@ spec = do
     specify "make sure that inj also declares a value that does not require `assemble`" $ do
       testIdiomaticModuleA `shouldBe` 23
 
-    specify "Support for type declaration be in between inj and fn decl" $ do
+    describe "" $ do
       let f (n, _, _, _, ds)  = (n, ds)
+      specify "Support for type declaration be in between inj and fn decl" $ do
 
-      ([text|
-        aI b = 1
-      |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-      ("\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-      ("\n\naI b = 1" $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-      ([text|
-        aI :: Int
-        aI b = 1
-      |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
-      -- ("" $> parseLineToDepsG $> f ) `shouldBe` ("", [])
-      ("" $> parseLineToDepsG $> f $> force $> evaluate) `shouldThrow` anyException
-      ([text|
-        aI :: x => Int
-        aI b = 1
-      |] $> T.unpack $> parseLineToDepsG $> f ) `shouldBe` ("a", ["b"])
+        ([text|
+          aI b = 1
+        |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+        ("\naI b = 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+        ("\n\naI b = 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+        ([text|
+          aI :: Int
+          aI b = 1
+        |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+        -- ("" $> parseLineToDepsG $> f) `shouldBe` ("", [])
+        ("" $> parseLineToDepsG $> f $> force $> evaluate) `shouldThrow` anyException
+        ([text|
+          aI :: x => Int
+          aI b = 1
+        |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
 
-      a `shouldBe` 1
-      b `shouldBe` 2
+        a `shouldBe` 1
+        b `shouldBe` 2
 
+      [aa| ("aI = \\n -> f $ g n" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
+      [aa| ("aI = \\n -> f $ g n" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
+      [aa| ("aI = \\x -> f $ g x" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
+      [aa| ("aI = 1" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
+      [aa| ("aI b = 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"]) |]
+      [aa| ("aI b = \\ x -> 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"]) |]
+      [aa| ("aI = 1 > 1" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
+
+    -- TODO: Handle splices in aa
+    -- [aa| $(assemble $ override "foo" "33" barD) `shouldBe` 34 |]
     specify "override with simple expressions" $ do
       $(assemble $ override "foo" "33" barD) `shouldBe` 34
       $(assemble $ override "foo" "1 + 2" barD) `shouldBe` 4
@@ -277,7 +289,6 @@ spec = do
     --     aI = 453
 
     --   $(assemble aD) `shouldBe` 453
-
 
 
     -- specify "override a non-leaf" $ do

@@ -183,7 +183,7 @@ parseLineToDepsG ls = (name, nameI, nameD, deps, args)
 
 findFirstFnDecLine ls = ls
   $> lines
-  $> L.find (("=" `L.isSubsequenceOf`) `andf` (("=>" `L.isSubsequenceOf`) .> not))
+  $> L.find (("=" `L.isInfixOf`) `andf` (("=>" `L.isInfixOf`) .> not))
   $> maybe (error $ "Couldn't find function definition: " ++ ls) id
 
 orf :: (a -> Bool) -> (a -> Bool) -> a -> Bool
