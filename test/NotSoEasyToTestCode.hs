@@ -30,7 +30,7 @@ liftIO = id
 
 -- Dep "makeTimer" [Dep "putStrLn" [], Dep "getCurrentTime" []]
 -- a = (makeTimer, putStrLn, getCurrentTime)
--- makeTimer' = let (f, a, b) = a in f a b 
+-- makeTimer' = let (f, a, b) = a in f a b
 
 -- Dep "makeTimer" [Dep "putStrLn" [], Dep "getCurrentTime" [], Dep "foo" [Dep "bar" []]]
 -- a = (makeTimer, putStrLn, getCurrentTime, (foo, bar))
