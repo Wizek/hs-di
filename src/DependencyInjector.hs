@@ -176,13 +176,19 @@ parseLineToDepsG ls = (name, nameI, nameD, deps, args)
   ws = words line
   name = nameI $> removeIname
   nameI = head ws
-  args = takeWhile (/= "=") $ tail ws
+  args = map (reverse .> takeWhile (/= '@') .> reverse) $ takeWhile (/= "=") $ tail ws
   nameD = d name
   deps = map d args
   d n = n ++ "D"
 
+-- groupByIndentation = id
+joinIndentedLines = id
+  .> groupBy (const $ (" " `isPrefixOf`))
+  .> map (intercalate "")
+
 findFirstFnDecLine ls = ls
   $> lines
+  $> joinIndentedLines
   $> L.find (("=" `L.isInfixOf`) `andf` (("=>" `L.isInfixOf`) .> not))
   $> maybe (error $ "Couldn't find function definition: " ++ ls) id
 

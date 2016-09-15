@@ -263,6 +263,53 @@ spec = do
       [aa| ("aI b = \\ x -> 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"]) |]
       [aa| ("aI = 1 > 1" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
 
+      context "support @ notation" $ do
+        [aa| ("aI f@longName = 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["longName"]) |]
+        -- [aa| ("aI f @ longName = 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["longName"]) |]
+        -- [aa| ("aI (f@longName) = 1" $> parseLineToDepsG $> f) `shouldBe` ("a", ["longName"]) |]
+
+      context "multiline support" $ do
+        -- [aa| ([text|
+        --   aI
+        --     b
+        --     = 1
+        -- |\] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"]) |]
+        it "" $ do
+          ([text|
+            aI
+              b
+              = 1
+          |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+
+        it "" $ do
+          ([text|
+            a :: Int -> Int
+            aI
+              b
+              = 1
+          |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+
+        it "" $ do
+          ([text|
+            a
+              :: Int
+              -> Int
+            aI
+              b
+              = 1
+          |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+
+        it "" $ do
+          ([text|
+            a
+              :: Int
+              -> Int
+            aI
+              b@longAssName
+              = 1
+          |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["longAssName"])
+
+
     -- TODO: Handle splices in aa
     -- [aa| $(assemble $ override "foo" "33" barD) `shouldBe` 34 |]
     specify "override with simple expressions" $ do
