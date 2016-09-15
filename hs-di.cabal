@@ -44,6 +44,7 @@ test-suite hs-di-test
     base
     , hs-di
     , hspec
+    , hspec-core
     , QuickCheck
     , template-haskell
     , time
@@ -53,6 +54,7 @@ test-suite hs-di-test
     , text
     , deepseq
     , haskell-src-meta
+    , ghcid
   ghc-options:
     -threaded
     -rtsopts
