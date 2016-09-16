@@ -255,6 +255,7 @@ spec = do
         a `shouldBe` 1
         b `shouldBe` 2
 
+
       [aa| ("aI = \\n -> f $ g n" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
       [aa| ("aI = \\n -> f $ g n" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]
       [aa| ("aI = \\x -> f $ g x" $> parseLineToDepsG $> f) `shouldBe` ("a", []) |]

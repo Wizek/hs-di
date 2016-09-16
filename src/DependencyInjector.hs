@@ -79,7 +79,7 @@ getContentOfNextLines = do
     file <- readFile $ loc_filename loc
     let
       (start, _) = loc_start loc
-      l = file $> lines $> drop start $> take 2 $> unlines
+      l = file $> lines $> drop start $> take 10 $> unlines
     return l
   return line
 
@@ -190,7 +190,7 @@ findFirstFnDecLine ls = ls
   $> lines
   $> joinIndentedLines
   $> L.find (("=" `L.isInfixOf`) `andf` (("=>" `L.isInfixOf`) .> not))
-  $> maybe (error $ "Couldn't find function definition: " ++ ls) id
+  $> maybe (error $ "Couldn't find function definition:\n" ++ ls) id
 
 orf :: (a -> Bool) -> (a -> Bool) -> a -> Bool
 orf f g x = f x || g x

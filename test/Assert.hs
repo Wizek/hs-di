@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
 
-module Assert where
+module Assert (aa) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
@@ -13,7 +13,8 @@ aa :: QuasiQuoter
 aa = QuasiQuoter { quoteExp = f }
 
 f :: String -> Q Exp
-f ss = [| $(n "it") $(return $ LitE $ StringL s) $ $(parseExp s $> either error return) |]
+f ss = [| $(n "specify") $(return $ LitE $ StringL s) $ $(parseExp s $> either error return) |]
   where
   s = strip ss
+
 n s = return $ VarE $ mkName s
