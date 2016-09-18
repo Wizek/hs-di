@@ -193,6 +193,11 @@ readMockConsole `shouldReturn`
     - `(-.5)` Due to limitations of Template Haskell declaration splices, "variable not in scope" errors can pop up that are annoying. Although it is in theory possible to work around these, and it is planned for a later release.
   - `(?)` How is performance impacted? Does GHC notice `f (g x) (g x)`?
 
+### Inspirations
+
+This package was initially inspired by the Dependency Injection framework of AngularJS (1.x).  
+Additional inspiration came when I was looking for ways to make DI work in a statically typed language at compile time, and found out about Dagger (Java).
+
 ### Todo checklist
 
 - [x] make multiple arguments work
