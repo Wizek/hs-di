@@ -387,3 +387,40 @@ pd = parseDecs .> fromRight
 pp = parsePat .> fromRight
 pe = parseExp .> fromRight
 fromRight (Right a) = a
+
+
+printForward = (prefix ++) .> putStrLn
+prefix = "  "
+
+
+xcontext n _ = context n $ it "xcontext" pending
+
+displayLoadingInfo = id
+  .> map (\case
+        -- l@(Loading _ _) -> l $> show $> (prefix ++) $> putStrLn
+        -- (Message{loadMessage=msg}) -> putStrLn $ unlines $ map (prefix ++) msg
+        (Message{loadMessage=msg, loadSeverity=Error}) -> error $ ("\n" ++) $ unlines $ map (prefix ++) msg
+        (Message{loadMessage=msg, loadSeverity=Warning}) -> error $ ("\n" ++) $ unlines $ map (prefix ++) msg
+        _ -> return ()
+      )
+  .> sequence_
+  where
+  prefix = "  "
+
+
+-- setUpGhcid = do
+--   (g, ls) <- startGhci "stack ghci hs-di:exe:hs-di-cases" (Just ".") (const $ const (return ()))
+--   displayLoadingInfo ls
+--   return g
+
+-- ghcid = unsafePerformIO $ newIORef Nothing
+-- ghcid = unsafePerformIO $ newMVar Nothing
+setUpGhcid = {-Hspec.runIO $-} do
+  lookupStore 0 >>= \case
+    Nothing -> do
+      (g, ls) <- startGhci "stack ghci hs-di:exe:hs-di-cases" (Just ".") (const $ const (return ()))
+      displayLoadingInfo ls
+      newStore g
+      -- writeIORef ghcid $ Just g
+      return g
+    Just s  -> readStore s
