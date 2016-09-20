@@ -28,21 +28,32 @@ convertDepsToExp = id
 convertDepsToExp' :: DepsG Exp -> Exp
 convertDepsToExp' (getDep -> (_, name,   [])) = name
 convertDepsToExp' (getDep -> (_, name, x:xs)) =
-  convertDepsToExp' (Dep (AppE name (convertDepsToExp' x)) xs)
+  convertDepsToExp' (depOP (AppE name (convertDepsToExp' x)) xs)
 
-data DepsG a = Dep a [DepsG a] | Rep a [DepsG a]
+data DepsG a = Dep {name :: a, src :: DepSrc, kind :: DepKind, cs :: [DepsG a]}
+  deriving (Show, Eq)
+
+data DepSrc = Original | Replaced
+  deriving (Show, Eq)
+-- [ ] TODO consider makeing `override` handle the tuple too making the
+--          distinction between original and overridden dependencies obsolete
+
+data DepKind = Pure | Monadic
   deriving (Show, Eq)
 
 type Deps = DepsG String
+-- [ ] TODO conder redefining as
+--          type Deps = DepsG Exp
+--          or
+--          type Deps = DepsG ExpQ
 
 mapDepNames :: (a -> b) -> DepsG a -> DepsG b
-mapDepNames f (Dep n xs) = Dep (f n) (map (mapDepNames f) xs)
-mapDepNames f (Rep n xs) = Rep (f n) (map (mapDepNames f) xs)
+mapDepNames f (getDep -> (c, n, xs)) = c (f n) (map (mapDepNames f) xs)
 
 -- mapDeps :: (DepsG a -> DepsG b) -> DepsG a -> DepsG b
 mapDeps f d | (cons, n, xs) <- getDep d = f $ cons n (map (mapDeps f) xs)
 
-mapChildren f (Dep n xs) = Dep n (f $ map (mapChildren f) xs)
+mapChildren f (getDep -> (c, n, xs)) = c n (f $ map (mapChildren f) xs)
 
 override :: String -> String -> Deps -> Deps
 override a b d = if d == res then error errMsg else res
@@ -55,8 +66,8 @@ override a b d = if d == res then error errMsg else res
 overrideName a b n | n == a      = b
                    | otherwise   = n
 
-overrideDep a b d | (c, n, ds) <- getDep d =
-  if n == a then (Rep b ds) else d
+overrideDep a b d@(getDep -> (c, n, ds)) =
+  if n == a then d{name=b, src=Replaced} else d
 
 
 getContentOfNextLine :: Q String
@@ -117,11 +128,11 @@ injectableLeaf name = injDecs (name, nameD name, [], [])
 
 injDecs (name, nameD, depsD, deps) =
   [d|
-    $identD = $consDep $nameStr $listLiteral
+    $identD = $consDep $nameStr $(nce "Original") $(nce "Pure") $listLiteral
     $(return $ VarP $ mkName $ nameT $ name) =
       $(return $ TupE $ map (VarE . mkName) (name : map (++ "T") deps))
     $(return $ VarP $ mkName $ name ++ "A") =
-      $(return $ convertDepsToExp $ Dep name (map (mapDepNames (++ "A")) (map (flip Dep []) deps)))
+      $(return $ convertDepsToExp $ depOP name (map (mapDepNames (++ "A")) (map (flip depOP []) deps)))
     $(return $ VarP $ mkName $ (++ "I") $ name) =
       $(return $ VarE $ mkName $ name)
   |]
@@ -134,6 +145,8 @@ injDecs (name, nameD, depsD, deps) =
     listLiteral = return $ ListE $ map (mkName .> VarE) depsD
     consDep :: Q Exp
     consDep = return $ ConE $ mkName "Dep"
+    -- ne = return . VarE . mkName
+    nce = return . ConE . mkName
 
 nameD = (++ "D")
 nameT = (++ "T")
@@ -149,14 +162,13 @@ tuplePattern d@(getDep -> (_, n, ds)) = tuplePattern' d n ds
 tuplePattern' d n [] = wrapNameFor d
 tuplePattern' d n ds = TupP $ (wrapNameFor d) : map tuplePattern ds
 
-wrapNameFor (Dep n _) = VarP $ mkName n
-wrapNameFor (Rep n _) = WildP
+wrapNameFor (Dep n Original _ _) = VarP $ mkName n
+wrapNameFor (Dep _ Replaced _ _) = WildP
 
 getDepName (getDep -> (_, n, _)) = n
 getDepDs   (getDep -> (_, _, ds)) = ds
 
-getDep (Dep n ds) = (Dep, n, ds)
-getDep (Rep n ds) = (Rep, n, ds)
+getDep (Dep n s p ds) = ((\n' ds' -> Dep n' s p ds'), n, ds)
 
 
 
@@ -204,13 +216,15 @@ removeIname n = n $> reverse .> f .> reverse
   f ('I':(a@(_:_))) = a
   f _ = error $ "Name must end with `I` suffix. e.g. `fooI` or `barI`: " ++ n
 
+depOP n ds = Dep n Original Pure ds
+
 injDecsG (name, nameI, nameD, depsD, deps) =
   [d|
-    $identD = $consDep $nameStr $listLiteral :: Deps
+    $identD = $consDep $nameStr Original Pure $listLiteral :: Deps
     $(return $ VarP $ mkName $ nameT $ name) =
       $(return $ TupE $ map (mkName .> VarE) ((name ++ "I") : map (++ "T") deps))
     $(return $ VarP $ mkName $ name) =
-      $(return $ convertDepsToExp $ Dep nameI (map (flip Dep []) deps))
+      $(return $ convertDepsToExp $ depOP nameI (map (flip depOP []) deps))
     $(return $ VarP $ mkName $ name ++ "A") =
       $(return $ VarE $ mkName $ name)
   |]

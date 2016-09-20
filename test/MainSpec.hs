@@ -1,7 +1,8 @@
 module MainSpec where
 
-import Test.Hspec hiding (specify)
-import qualified Test.Hspec as Hspec (specify)
+import            Test.Hspec as Hspec hiding  (specify)
+import qualified  Test.Hspec as Hspec         (specify)
+import qualified  Test.Hspec.Core.Runner as HC
 import Data.List
 
 import Language.Haskell.TH
@@ -21,6 +22,12 @@ import qualified Data.Text as T
 import Control.DeepSeq (force)
 import Language.Haskell.Meta
 import Assert
+import Language.Haskell.Ghcid
+import Control.Concurrent
+import System.IO.Unsafe (unsafePerformIO)
+import Control.Concurrent.MVar
+import Foreign.Store
+-- import Data.IORef
 
 inj
 testIdiomaticImportMock = 44
@@ -33,14 +40,23 @@ injG
 bI :: Int
 bI = 2
 
-spec = do
+
+mainColor = HC.hspecWith HC.defaultConfig{HC.configColorMode=HC.ColorAlways} spec
+main = hspec spec
+
+spec = specWith Nothing
+
+specWith maybeG = do
+  let
+    dep n c = Dep n Original Pure c
+    rep n c = Dep n Replaced Pure c
+
   specify "mapDepNames" $ do
 
-    let l x = Dep x []
+    let l x = dep x []
 
-    mapDepNames (const "2" ) (Dep "1" []) `shouldBe` (Dep "2" [])
-    mapDepNames (const 2) (Dep "1" []) `shouldBe` (Dep 2 [])
-
+    mapDepNames (const "2" ) (dep "1" []) `shouldBe` (dep "2" [])
+    mapDepNames (const 2) (dep "1" []) `shouldBe` (dep 2 [])
 
   specify "convertDepsToExp" $ do
 
@@ -48,29 +64,29 @@ spec = do
     -- let ppsB = shouldBeF show
     let ppsB = shouldBe
 
-    convertDepsToExp (Dep "a" []) `ppsB` (VarE $ mkName "a")
+    convertDepsToExp (dep "a" []) `ppsB` (VarE $ mkName "a")
 
-    convertDepsToExp (Dep "a" [Dep "b" []]) `ppsB`
+    convertDepsToExp (dep "a" [dep "b" []]) `ppsB`
       (AppE (VarE $ mkName "a") (VarE $ mkName "b"))
 
-    convertDepsToExp (Dep "a" [Dep "b" [], Dep "c" []]) `ppsB`
+    convertDepsToExp (dep "a" [dep "b" [], dep "c" []]) `ppsB`
       (AppE (AppE (VarE $ mkName "a") (VarE $ mkName "b")) (VarE $ mkName "c"))
 
 
   specify "override fn" $ do
 
-    override "a" "b" (Dep "a" []) `shouldBe` Rep "b" []
-    override "a" "c" (Dep "a" []) `shouldBe` Rep "c" []
-    -- override "b" "c" (Dep "a" []) `shouldBe` Dep "a" []
-    evaluate (override "b" "c" (Dep "a" [])) `shouldThrow` anyException
+    override "a" "b" (dep "a" []) `shouldBe` rep "b" []
+    override "a" "c" (dep "a" []) `shouldBe` rep "c" []
+    -- override "b" "c" (dep "a" []) `shouldBe` dep "a" []
+    evaluate (override "b" "c" (dep "a" [])) `shouldThrow` anyException
 
-    -- override "x" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Dep "a" []])
-    evaluate (override "x" "c" (Dep "b" [Dep "a" []])) `shouldThrow` anyException
-    override "b" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Rep "c" [Dep "a" []])
-    override "a" "c" (Dep "b" [Dep "a" []]) `shouldBe` (Dep "b" [Rep "c" []])
+    -- override "x" "c" (dep "b" [dep "a" []]) `shouldBe` (dep "b" [dep "a" []])
+    evaluate (override "x" "c" (dep "b" [dep "a" []])) `shouldThrow` anyException
+    override "b" "c" (dep "b" [dep "a" []]) `shouldBe` (rep "c" [dep "a" []])
+    override "a" "c" (dep "b" [dep "a" []]) `shouldBe` (dep "b" [rep "c" []])
 
-    override "a" "c" (Dep "b" [Dep "a" [], Dep "a" []]) `shouldBe`
-      (Dep "b" [Rep "c" [], Rep "c" []])
+    override "a" "c" (dep "b" [dep "a" [], dep "a" []]) `shouldBe`
+      (dep "b" [rep "c" [], rep "c" []])
 
 
   specify "assemble" $ do
@@ -81,7 +97,7 @@ spec = do
   specify "mocking" $ do
 
     let
-      fooDMock = Dep "fooMock" []
+      fooDMock = dep "fooMock" []
       fooMock = 33
     $(assemble $ override "foo" "fooMock" barD) `shouldBe` 34
 
@@ -91,7 +107,7 @@ spec = do
     $(assemble $ idTestD) `shouldBe` 3
 
     let
-      idDMock = Dep "idMock" []
+      idDMock = dep "idMock" []
       idMock = (+1)
     $(assemble $ override "id" "idMock" idTestD) `shouldBe` 4
 
@@ -100,8 +116,8 @@ spec = do
     $(assemble $ testModuleD) `shouldBe` 12
 
   -- specify "qualified names" $ do
-  --   $(assemble $ Dep "Prelude.id" []) 1 `shouldBe` 1
-  --   $(assemble $ Dep "Prelude.*" []) 2 3 `shouldBe` 6
+  --   $(assemble $ dep "Prelude.id" []) 1 `shouldBe` 1
+  --   $(assemble $ dep "Prelude.*" []) 2 3 `shouldBe` 6
 
 
   specify "code that is more real-life" $ do
@@ -112,7 +128,7 @@ spec = do
     cTime <- newIORef $ parseTime "2016-01-01 14:00:00"
     let
       -- $(inj)
-      putStrLnMockD = Dep "putStrLnMock" []
+      putStrLnMockD = dep "putStrLnMock" []
       putStrLnMockT = putStrLnMock
       putStrLnMock a = modifyIORef mockConsole (a :)
 
@@ -122,7 +138,7 @@ spec = do
         -- readIORef mockConsole $> (fmap reverse)
 
       -- $(inj)
-      getCurrentTimeMockD = Dep "getCurrentTimeMock" []
+      getCurrentTimeMockD = dep "getCurrentTimeMock" []
       getCurrentTimeMockT = getCurrentTimeMock
       getCurrentTimeMock = readIORef cTime
 
@@ -162,47 +178,47 @@ spec = do
 
 
 
-  specify "automatic deps declaration" $ do
-    -- deps "makeTimer" $> runQ >>= (pprint  .> (`shouldBe` "Dep \"makeTimer\" [putStrLnD, getCurrentTimeD]"))
+  describe "automatic deps declaration" $ do
+    -- deps "makeTimer" $> runQ >>= (pprint  .> (`shouldBe` "dep \"makeTimer\" [putStrLnD, getCurrentTimeD]"))
     -- putStrLn $( (fmap show $ location) >>= ( StringL .> LitE .> return)  )
     -- let asd = fmap (LitE $ StringL) getContentOfNextLine
-    strip $(getContentOfNextLineLit) `shouldBe` "let asd foo = foo + 1"
-    let asd foo = foo + 1
-    strip $(getContentOfNextLineLit) `shouldBe` "let asd foo = foo + 2"
-    let asd foo = foo + 2
-    let
-      a = strip $(getContentOfNextLineLit) `shouldBe` "asd foo = foo + 2"
-      asd foo = foo + 2
-    a
-    -- parseLineToDeps "foo = 1" `shouldBe` Dep "foo" []
+    specify "" $ do
+      strip $(getContentOfNextLineLit) `shouldBe` "let asd foo = foo + 1"
+      let asd foo = foo + 1
+      strip $(getContentOfNextLineLit) `shouldBe` "let asd foo = foo + 2"
+      let asd foo = foo + 2
+      let
+        a = strip $(getContentOfNextLineLit) `shouldBe` "asd foo = foo + 2"
+        asd foo = foo + 2
+      a
+      -- parseLineToDeps "foo = 1" `shouldBe` dep "foo" []
+      parseLineToDeps "a = 1" `shouldBe` ("a", "aD", [], [])
+      parseLineToDeps "b = 1" `shouldBe` ("b", "bD", [], [])
+      parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"], ["a"])
 
-    parseLineToDeps "a = 1" `shouldBe` ("a", "aD", [], [])
-    parseLineToDeps "b = 1" `shouldBe` ("b", "bD", [], [])
-    parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"], ["a"])
+    [aa| (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>=
+      (`shouldSatisfy` ("asdD = Dep \"asd\" Original Pure []" `isPrefixOf`)) |]
 
-    (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>=
-      (`shouldSatisfy` ("asdD = Dep \"asd\" []" `isPrefixOf`))
-    (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>=
-      (`shouldSatisfy` ("asdD = Dep \"asd\" [aD]" `isPrefixOf`))
+    [aa| (injectableI (return "asd a = 2") $> runQ $> fmap pprint) >>=
+      (`shouldSatisfy` ("asdD = Dep \"asd\" Original Pure [aD]" `isPrefixOf`)) |]
 
-    (injLeaf "asdasd" $> runQ $> fmap pprint) >>=
-      (`shouldSatisfy` ("asdasdD = Dep \"asdasd\" []" `isPrefixOf`))
-
-    return ()
+    [aa| (injLeaf "asdasd" $> runQ $> fmap pprint) >>=
+      (`shouldSatisfy` ("asdasdD = Dep \"asdasd\" Original Pure []" `isPrefixOf`)) |]
 
   describe "idiomatic module support" $ do
     specify "utils" $ do
-      -- (convertDepsViaTuple (Dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
-      (tuplePattern (Dep "a" []) $> pprint) `shouldBe` "a"
-      (tuplePattern (Dep "a" [Dep "b" []]) $> pprint) `shouldBe` "(a, b)"
-      (convertDepsViaTuple (Dep "a" []) $> pprint) `shouldBe` "let a = aT\n in a"
-      (convertDepsViaTuple (Dep "a" [Dep "b" []]) $> pprint) `shouldBe`
+      -- (convertDepsViaTuple (dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
+      (tuplePattern (dep "a" []) $> pprint) `shouldBe` "a"
+      (tuplePattern (dep "a" [dep "b" []]) $> pprint) `shouldBe` "(a, b)"
+      (convertDepsViaTuple (dep "a" []) $> pprint) `shouldBe` "let a = aT\n in a"
+      (convertDepsViaTuple (dep "a" [dep "b" []]) $> pprint) `shouldBe`
         "let (a, b) = aT\n in a b"
-      (convertDepsViaTuple (Dep "a" [Dep "b" [Dep "d" []], Dep "c" []]) $> pprint)
+      (convertDepsViaTuple (dep "a" [dep "b" [dep "d" []], dep "c" []]) $> pprint)
         `shouldBe` "let (a, (b, d), c) = aT\n in a (b d) c"
-      (convertDepsViaTuple (Rep "a" []) $> pprint) `shouldBe` "let _ = aT\n in a"
-      (convertDepsViaTuple (Dep "a" [Rep "b" []]) $> pprint) `shouldBe`
-        "let (a, _) = aT\n in a b"
+      (convertDepsViaTuple (rep "a" []) $> pprint) `shouldBe` "let _ = aT\n in a"
+
+    [aa| (convertDepsViaTuple (dep "a" [rep "b" []]) $> pprint) `shouldBe`
+        "let (a, _) = aT\n in a b" |]
 
     -- [x] TODO: warn or error if override didn't match anything
     --           e.g. compare before with after to check for EQ
@@ -214,7 +230,7 @@ spec = do
 
     specify "Still support clumsy fallback" $ do
       let
-        aD = Dep "a" []
+        aD = dep "a" []
         aT = a
         a = 1
       $( testIdiomaticModuleD
@@ -223,7 +239,7 @@ spec = do
 
     specify "less clumsy, requires more imports though" $ do
       let
-        aD = Dep "a" []
+        aD = dep "a" []
         a = 2
       $( testIdiomaticModuleD
         $> override "testIdimoaticImport" "a"
@@ -301,6 +317,7 @@ spec = do
           |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
 
         it "" $ do
+          -- threadDelay 1000000
           ([text|
             a
               :: Int
