@@ -310,6 +310,38 @@ spec = do
               = 1
           |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["longAssName"])
 
+    let loadModule g modName = do
+          result <- exec g $ ":load test/" ++ modName ++ ".hs"
+          if result $> last $> ("Ok, modules loaded" `isPrefixOf`)
+            then return ()
+            else error $ "\n" ++ unlines result
+
+    context "ghcid" $ beforeAll (maybe setUpGhcid return maybeG) $ do
+      it "ghcid test" $ \g -> do
+        -- exec g "import GhcidTest"
+        -- exec g ":load test/GhcidTest.hs" >>= print
+        -- exec g ":m + GhcidTest"
+        loadModule g "GhcidTest"
+        exec g "xxx" `shouldReturn` ["123"]
+        exec g "xxx2" `shouldReturn` ["34"]
+
+      it ">>= support" $ \g -> do
+        -- exec g ":load test/IOScenario.hs" >>= print
+        loadModule g "IOScenario"
+        exec g "startupTimeString" `shouldReturn` ["123"]
+
+      --   -- exec g "1+1+12323" >>= map printForward .> sequence_
+      --   -- print 1
+      --   -- 1 `shouldBe` 2
+      --   -- exec g "import Asd"
+      --   -- exec g ":set -XTemplateHsaskell"
+      --   exec g ":load test/Asd.hs"
+      --   -- exec g "import Asd"
+      --   -- exec g ":t xxxD" `shouldReturn` ["123"]
+      --   exec g "xxx" `shouldReturn` ["123"]
+      --   exec g "xxx2" `shouldReturn` ["34"]
+      --   -- return ()
+      --   -- print 1
 
     -- TODO: Handle splices in aa
     -- [aa| $(assemble $ override "foo" "33" barD) `shouldBe` 34 |]
