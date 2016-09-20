@@ -27,6 +27,22 @@ library
     , haskell-src-meta
   default-language:    Haskell2010
 
+executable hs-di-cases
+  -- type:                exitcode-stdio-1.0
+  main-is:             Main.hs
+  hs-source-dirs:      src, ., test, app
+  build-depends:
+    base >= 4.7 && < 5
+    , template-haskell
+    , compose-ltr
+    , haskell-src-meta
+    , time
+    -- , hs-di
+  default-language:    Haskell2010
+  default-extensions:
+    TemplateHaskell
+    QuasiQuotes
+
 test-suite hs-di-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test, .
