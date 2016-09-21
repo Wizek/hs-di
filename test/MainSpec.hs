@@ -1,7 +1,7 @@
 module MainSpec where
 
-import            Test.Hspec as Hspec hiding  (specify)
-import qualified  Test.Hspec as Hspec         (specify)
+import            Test.Hspec as Hspec hiding  (specify, it)
+import qualified  Test.Hspec as Hspec         (specify, it)
 import qualified  Test.Hspec.Core.Runner as HC
 import Data.List
 
@@ -16,7 +16,7 @@ import Data.IORef
 import Data.String.Utils
 import Common
 import qualified GradualSpec as G ()
-import Control.Exception (evaluate)
+import Control.Exception
 import NeatInterpolation
 import qualified Data.Text as T
 import Control.DeepSeq (force)
@@ -28,6 +28,12 @@ import System.IO.Unsafe (unsafePerformIO)
 import Control.Concurrent.MVar
 import Foreign.Store
 -- import Data.IORef
+import qualified Data.Text.IO as T
+-- import qualified Test.HUnit as HUnit
+import Test.Hspec.Expectations
+import Text.InterpolatedString.Perl6
+import Data.String.Interpolate.Util
+import SpecCommon
 
 inj
 testIdiomaticImportMock = 44
@@ -327,25 +333,95 @@ specWith maybeG = do
               = 1
           |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["longAssName"])
 
-    let loadModule g modName = do
-          result <- exec g $ ":load test/" ++ modName ++ ".hs"
-          if result $> last $> ("Ok, modules loaded" `isPrefixOf`)
-            then return ()
-            else error $ "\n" ++ unlines result
+    -- let loadModule' g modName = do
+    --       result <- exec g $ ":load test/" ++ modName ++ ".hs"
+    --       -- if result $> last $> ("Ok, modules loaded" `isPrefixOf`)
+    --       if result $> any ("Ok, modules loaded" `isPrefixOf`)
+    --         then map printForward result $> sequence_
+    --         else error $ "\n" ++ unlines result
+
 
     context "ghcid" $ beforeAll (maybe setUpGhcid return maybeG) $ do
-      it "ghcid test" $ \g -> do
+
+      it "ghcid test 1" $ \g -> do
+        exec g "1+2" `shouldReturn` ["3"]
+
+      it "ghcid test 2" $ \g -> do
         -- exec g "import GhcidTest"
         -- exec g ":load test/GhcidTest.hs" >>= print
         -- exec g ":m + GhcidTest"
-        loadModule g "GhcidTest"
+        loadModule' g "GhcidTest"
         exec g "xxx" `shouldReturn` ["123"]
         exec g "xxx2" `shouldReturn` ["34"]
 
+      specify "common dependency" $ \g -> do
+        let
+            shouldBeStr :: String -> String -> IO ()
+            actual `shouldBeStr` expected
+              | actual == expected = return ()
+              | otherwise = expectationFailure failMsg
+
+              where
+                failMsg =
+                  [qx|
+                    Actual:
+                    {actual}
+
+                    Expected:
+                    {expected}
+                  |]
+                -- failMsg = T.unpack
+                --   [text|
+                --     $(T.pack expected)
+                --     ${T.pack actual}
+                --   |]
+              -- (actual `shouldReturn` expected) `catch` (\(e :: SomeException) ->
+              --   putStrLn actual
+              -- )
+        T.writeFile "test/Scenarios/CommonDependency.hs" [text|
+          -- module CommonDependency where
+          import DI
+
+          inj
+          a = 1
+          inj
+          b a = a + 2
+          inj
+          c a = a + 4
+          inj
+          d b c = b + c
+        |]
+        loadModule' g "Scenarios/CommonDependency"
+        (exec g "$(assemble dD)" >>= unlines.>return) >>= (`shouldBeStr` unlines ["8"])
+
+
+      -- specify "injAll" $ \g -> do
+      --   T.writeFile "test/Scenarios/CommonDependency.hs" [text|
+      --     -- module CommonDependency where
+      --     import DI
+
+      --     a = 1
+      --     b a = a + 2
+      --     c a = a + 4
+      --     d b c = b + c
+
+      --     injAll
+      --   |]
+      --   loadModule' g "Scenarios/CommonDependency"
+      --   (exec g "$(assemble dD)" >>= unlines.>return) >>= (`shouldBeStr` unlines ["8"])
+
       it ">>= support" $ \g -> do
         -- exec g ":load test/IOScenario.hs" >>= print
-        loadModule g "IOScenario"
-        exec g "startupTimeString" `shouldReturn` ["123"]
+        loadModule' g "IOScenario"
+        -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines) >>= putStrLn
+        -- (exec g "startupTimeStringD" $> fmap unlines) >>= putStrLn
+        -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines)
+        --   `shouldReturn` unlines ["123"]
+        (exec g "$(assembleSimple xxxD)" $> fmap unlines) >>= putStrLn
+
+        loadModule' g "IOScenarioMain"
+        -- exec g "xxx" >>=  unlines .> putStrLn
+        -- exec g "$(assemble xxxD)" >>=  unlines .> putStrLn
 
       --   -- exec g "1+1+12323" >>= map printForward .> sequence_
       --   -- print 1
@@ -394,9 +470,49 @@ specWith maybeG = do
     -- specify "override, change deps" $ do
     --   pending
 
+  context "unindent" $ do
+    [aa| unindent (unlines [
+        "a"
+      ]) `shouldBe` (unlines [
+        "a"
+      ]) |]
+
+    [aa| unindent (unlines [
+        "  a"
+      ]) `shouldBe` (unlines [
+        "a"
+      ]) |]
+
+    [aa| unindent (unlines [
+        "  a"
+      , "a"
+      ]) `shouldBe` (unlines [
+        "  a"
+      , "a"
+      ]) |]
+
+    [aa| unindent (unlines [
+        "  a"
+      , " a"
+      ]) `shouldBe` (unlines [
+        " a"
+      , "a"
+      ]) |]
+
+loadModule' g modName = do
+  result <- exec g $ ":load test/" ++ modName ++ ".hs"
+  -- if result $> last $> ("Ok, modules loaded" `isPrefixOf`)
+  if result $> any ("Ok, modules loaded" `isPrefixOf`)
+    then map printForward result $> sequence_
+    else error $ "\n" ++ unlines result
+
 -- runOnlyPrefix = ["!"]
+-- runOnlyPrefix = ["unindent"]
 runOnlyPrefix = [""]
 specify a = if (any (`isPrefixOf` a) runOnlyPrefix)
+  then Hspec.specify a
+  else (\_->return ())
+it a = if (any (`isPrefixOf` a) runOnlyPrefix)
   then Hspec.specify a
   else (\_->return ())
 
@@ -411,6 +527,8 @@ prefix = "  "
 
 
 xcontext n _ = context n $ it "xcontext" pending
+
+xit n _ = it n pending
 
 displayLoadingInfo = id
   .> map (\case

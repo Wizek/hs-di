@@ -4,23 +4,38 @@ import DI
 import Data.Time
 
 injMG
-startupTimeI = getCurrentTime
+startupTime :: UTCTime
+startupTimeI = do
+  print "startupTime init"
+  getCurrentTime
 
 injG
-startupTimeStringI startupTime = show startupTime
+-- startupTimeString :: String
+startupTimeStringI startupTime = show (startupTime :: UTCTime)
 
-startupTimeString =
-  let (startupTimeStringI, startupTimeI) = startupTimeStringT
-  in  startupTimeA >>= \startupTime -> startupTimeStringI startupTime
+injG
+-- startupTimeString :: String
+startupTimeStringBBBI startupTime = show (startupTime :: UTCTime) ++ "-BBB"
 
-startupTimeString' =
-  let (startupTimeStringI, (startupTimeI, getCurrentTimeA)) = startupTimeStringT
-  in  (startupTimeI getCurrentTimeA) >>= \startupTime -> startupTimeStringI startupTime
+injG
+xxxI
+  a@startupTimeString
+  b@startupTimeStringBBB
+  = a ++ b
+-- startupTimeStringIOxxxI startupTime = startupTime >>= show .> return
 
-a' =
-  let (aI, (bI, c)) = aT
-  in let b = bI c in let a = aI b in a
+-- startupTimeString =
+--   let (startupTimeStringI, startupTimeI) = startupTimeStringT
+--   in  startupTimeA >>= \startupTime -> startupTimeStringI startupTime
 
-a'' =
-  let (aI, (bI, c)) = aT
-  in bI c >>= \b-> let a = aI b in a
+-- startupTimeString' =
+--   let (startupTimeStringI, (startupTimeI, getCurrentTimeA)) = startupTimeStringT
+--   in  (startupTimeI getCurrentTimeA) >>= \startupTime -> startupTimeStringI startupTime
+
+-- a' =
+--   let (aI, (bI, c)) = aT
+--   in let b = bI c in let a = aI b in a
+
+-- a'' =
+--   let (aI, (bI, c)) = aT
+--   in bI c >>= \b-> let a = aI b in a

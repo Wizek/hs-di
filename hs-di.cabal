@@ -48,7 +48,10 @@ executable hs-di-cases
   default-extensions:
     TemplateHaskell
     QuasiQuotes
-
+  ghc-options:
+    -ddump-splices
+    -ddump-to-file
+    -fdefer-type-errors
 
 test-suite hs-di-test
   type:                exitcode-stdio-1.0
@@ -68,6 +71,7 @@ test-suite hs-di-test
     , hs-di
     , hspec
     , hspec-core
+    , hspec-expectations
     , QuickCheck
     , template-haskell
     , time
@@ -79,6 +83,8 @@ test-suite hs-di-test
     , haskell-src-meta
     , ghcid
     , foreign-store
+    , interpolatedstring-perl6
+    , interpolate
   ghc-options:
     -threaded
     -rtsopts
@@ -91,8 +97,8 @@ test-suite hs-di-test
     -- appropriate for a distributed package. Alternatively, if you want to use this,
     -- make it conditional based on a Cabal configuration flag (with 'manual: True'
     -- and 'default: False') and enable that flag during development.
-    -- -ddump-splices
-    -- -ddump-to-file
+    -ddump-splices
+    -ddump-to-file
 
     -- -fforce-recomp
   default-language:    Haskell2010

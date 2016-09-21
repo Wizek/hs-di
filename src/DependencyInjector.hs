@@ -2,14 +2,19 @@
 {-# language ViewPatterns #-}
 {-# language PatternSynonyms #-}
 
-module DependencyInjector where
+module DependencyInjector (
+  module DependencyInjector,
+  -- module Assembler,
+  ) where
 
+-- import Assembler
 import Control.Monad
 import Language.Haskell.TH
 import Common
 import Data.List as L
 import Language.Haskell.Meta (parseExp)
 import Data.Either
+import System.IO.Unsafe
 
 assemble :: Deps -> Q Exp
 assemble = convertDepsViaTuple .> return
@@ -25,10 +30,26 @@ convertDepsToExp = id
   where
     errF = ("Error parsing: " ++) .> error
 
+
 convertDepsToExp' :: DepsG Exp -> Exp
+
+convertDepsToExp' d@(Dep{kind=Monadic, cs=[]}) =
+  -- AppE (VarE $ mkName "unsafePerformIO") $ convertDepsToExp' d{kind=Pure}
+  -- error "xxx"
+  convertDepsToExp' $ depOP (VarE $ 'unsafePerformIO) [d{kind=Pure}]
+
 convertDepsToExp' (getDep -> (_, name,   [])) = name
+
+-- convertDepsToExp' d@(Dep{kind=Monadic}) =
+--   AppE (VarE $ mkName "unsafePerformIO") $ convertDepsToExp' d{kind=Pure}
+
+
+convertDepsToExp' d@(Dep{kind=Monadic, cs=(_:_)}) =
+  error "Children not yet supported in Monadic deps"
+
 convertDepsToExp' (getDep -> (_, name, x:xs)) =
   convertDepsToExp' (depOP (AppE name (convertDepsToExp' x)) xs)
+
 
 data DepsG a = Dep {name :: a, src :: DepSrc, kind :: DepKind, cs :: [DepsG a]}
   deriving (Show, Eq)
@@ -153,7 +174,7 @@ nameT = (++ "T")
 
 r x = x .> return
 
-convertDepsViaTuple deps | n <- getDepName deps = LetE
+convertDepsViaTuple deps@(name -> n) = LetE
   [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ n ++ "T")) []]
   (convertDepsToExp deps)
 
@@ -179,7 +200,13 @@ injG = injIG getContentOfFollowingFnLine
 injIG getContentOfFollowingFnLine = do
   getContentOfFollowingFnLine
   >>= parseLineToDepsG .> return
-  >>= injDecsG
+  >>= injDecsG 'Pure
+
+injMG :: Q [Dec]
+injMG = do
+  getContentOfFollowingFnLine
+  >>= parseLineToDepsG .> return
+  >>= injDecsG 'Monadic
 
 -- parseLineToDepsG :: String -> (String, String, [String], [String])
 parseLineToDepsG ls = (name, nameI, nameD, deps, args)
@@ -218,15 +245,19 @@ removeIname n = n $> reverse .> f .> reverse
 
 depOP n ds = Dep n Original Pure ds
 
-injDecsG (name, nameI, nameD, depsD, deps) =
+injDecsG n (name, nameI, nameD, depsD, deps) =
   [d|
-    $identD = $consDep $nameStr Original Pure $listLiteral :: Deps
+    $identD = $consDep $nameStr Original $(return $ ConE $ n) $listLiteral :: Deps
     $(return $ VarP $ mkName $ nameT $ name) =
       $(return $ TupE $ map (mkName .> VarE) ((name ++ "I") : map (++ "T") deps))
-    $(return $ VarP $ mkName $ name) =
-      $(return $ convertDepsToExp $ depOP nameI (map (flip depOP []) deps))
     $(return $ VarP $ mkName $ name ++ "A") =
-      $(return $ VarE $ mkName $ name)
+      -- $(assemble $ depOP nameI (map (flip depOP []) deps))
+      $(return $ convertDepsToExp $ depOP nameI (map (flip depOP []) deps))
+    $(return $ VarP $ mkName $ name) =
+      $(if n == 'Pure
+        then return $ VarE $ mkName $ name ++ "A"
+        else return $ AppE (VarE 'unsafePerformIO) (VarE $ mkName $ name ++ "A")
+        )
   |]
   where
     identD :: Q Pat
