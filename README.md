@@ -206,7 +206,7 @@ Additional inspiration came when I was looking for ways to make DI work in a sta
 - [x] try with some real-life code
 - [x] Write quasi quoter or TH splicer that writes the `Deps` definitions too
 - [x] look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
-- [ ] Support function headers that are not immediately below
+- [x] Support function headers that are not immediately below
   - [ ] Consider using haskell-source-meta to extract parameter info 
 - [ ] work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
 - [x] Allow single dependency more than once
