@@ -553,7 +553,7 @@ fromRight (Right a) = a
 printForward = (prefix ++) .> putStrLn
 prefix = "  "
 
-
+noop :: Monad m => m ()
 noop = return ()
 dont _ = noop
 
