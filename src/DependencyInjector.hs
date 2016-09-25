@@ -120,6 +120,11 @@ getContentOfNextLines = do
     return l
   return line
 
+getContentOfFile :: Q String
+getContentOfFile = do
+  loc <- location
+  runIO $ readFile $ loc_filename loc
+
 getContentOfFollowingFnLine :: Q String
 getContentOfFollowingFnLine =
   getContentOfNextLines >>= findFirstFnDecLine .> return
@@ -232,6 +237,16 @@ injMG = do
   getContentOfFollowingFnLine
   >>= parseLineToDepsG .> return
   >>= injDecsG 'Monadic
+
+injAllG :: Q [Dec]
+injAllG = do
+  getContentOfFile
+  >>= lines
+  .> groupByIndentation
+  .> filter (concat .> words .> uncons .> maybe False (fst .> ("I" `isSuffixOf`)))
+  .> map (unlines .> parseLineToDepsG .> injDecsG 'Pure)
+  .> sequence
+  .> fmap concat
 
 -- parseLineToDepsG :: String -> (String, String, [String], [String])
 parseLineToDepsG ls = (name, nameI, nameD, deps, args)

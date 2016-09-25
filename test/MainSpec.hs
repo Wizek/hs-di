@@ -372,17 +372,14 @@ specWith maybeG = do
         -- |]
 
         T.writeFile "test/Scenarios/CommonDependency.hs" [text|
-          -- module CommonDependency where
           import DI
 
-          inj
-          a = 1
-          inj
-          b a = a + 2
-          inj
-          c a = a + 4
-          inj
-          d b c = b + c
+          aI = 1
+          bI a = a + 2
+          cI a = a + 4
+          dI b c = b + c
+
+          injAllG
         |]
         loadModule' g "Scenarios/CommonDependency"
         execAssert g "$(assemble dD)" (`shouldBeStr` unlines ["8"])
@@ -394,16 +391,14 @@ specWith maybeG = do
       specify "common dependency 2" $ \g -> do
         T.writeFile "test/Scenarios/CommonDependency2.hs" [text|
           import DI
-          inj
-          x = 1
-          inj
-          a x = x + 1
-          inj
-          b a = a + 2
-          inj
-          c a = a + 4
-          inj
-          d b c = b + c
+
+          xI = 1
+          aI x = x + 1
+          bI a = a + 2
+          cI a = a + 4
+          dI b c = b + c
+
+          injAllG
         |]
         loadModule' g "Scenarios/CommonDependency2"
 
@@ -416,34 +411,44 @@ specWith maybeG = do
         --   $> failDetails "asdasd"
 
 
-      -- specify "injAll" $ \g -> do
-      --   T.writeFile "test/Scenarios/CommonDependency.hs" [text|
-      --     -- module CommonDependency where
-      --     import DI
+      specify "injAllG" $ \g -> do
+        T.writeFile "test/Scenarios/injAll.hs" [text|
+          import DI
 
-      --     a = 1
-      --     b a = a + 2
-      --     c a = a + 4
-      --     d b c = b + c
+          aI = 1
+          bI a = a + 2
 
-      --     injAll
-      --   |]
-      --   loadModule' g "Scenarios/CommonDependency"
-      --   (exec g "$(assemble dD)" >>= unlines.>return) >>= (`shouldBeStr` unlines ["8"])
+          injAllG
+        |]
+        loadModule' g "Scenarios/injAll"
+        execAssert g "$(assemble bD)" (`shouldBeStr` unlines ["3"])
 
-      it ">>= support" $ \g -> do
-        -- exec g ":load test/IOScenario.hs" >>= print
-        loadModule' g "IOScenario"
-        -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines) >>= putStrLn
-        -- (exec g "startupTimeStringD" $> fmap unlines) >>= putStrLn
-        -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines)
-        --   `shouldReturn` unlines ["123"]
+      specify "injAllG out-of-order" $ \g -> do
+        T.writeFile "test/Scenarios/injAll2.hs" [text|
+          import DI
 
-        (exec g "$(assembleSimple xxxD)") >>= (unlines .> putStrLn)
+          bI a = a + 2
+          aI = 1
+          cI b = b + 3
 
-        loadModule' g "IOScenarioMain"
-        -- exec g "xxx" >>=  unlines .> putStrLn
-        -- exec g "$(assemble xxxD)" >>=  unlines .> putStrLn
+          injAllG
+        |]
+        loadModule' g "Scenarios/injAll2"
+        execAssert g "$(assemble cD)" (`shouldBeStr` unlines ["6"])
+
+      -- it ">>= support" $ \g -> do
+      --   -- exec g ":load test/IOScenario.hs" >>= print
+      --   loadModule' g "IOScenario"
+      --   -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines) >>= putStrLn
+      --   -- (exec g "startupTimeStringD" $> fmap unlines) >>= putStrLn
+      --   -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines)
+      --   --   `shouldReturn` unlines ["123"]
+
+      --   (exec g "$(assemble xxxD)") >>= (unlines .> putStrLn)
+
+      --   loadModule' g "IOScenarioMain"
+      --   -- exec g "xxx" >>=  unlines .> putStrLn
+      --   -- exec g "$(assemble xxxD)" >>=  unlines .> putStrLn
 
       --   -- exec g "1+1+12323" >>= map printForward .> sequence_
       --   -- print 1

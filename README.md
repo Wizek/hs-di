@@ -200,16 +200,16 @@ Additional inspiration came when I was looking for ways to make DI work in a sta
 
 ### Todo checklist
 
-- [x] make multiple arguments work
-- [x] Simplify Deps
-- [x] reorder arguments of override
-- [x] try with some real-life code
-- [x] Write quasi quoter or TH splicer that writes the `Deps` definitions too
-- [x] look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
-- [x] Support function headers that are not immediately below
+- [x] `(v0.2+)` make multiple arguments work
+- [x] `(v0.2+)` Simplify Deps
+- [x] `(v0.2+)` reorder arguments of override
+- [x] `(v0.2+)` try with some real-life code
+- [x] `(v0.2+)` Write quasi quoter or TH splicer that writes the `Deps` definitions too
+- [x] `(v0.2+)` look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
+- [x] `(v0.3+)` Support function headers that are not immediately below
   - [ ] Consider using haskell-source-meta to extract parameter info 
-- [ ] work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
-- [x] Allow single dependency more than once
+- [x] `(v0.3+)` work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
+- [x] `(v0.3+)` Allow single dependency more than once
 - [ ] have GHC support Dec TH splices in let bindings: https://ghc.haskell.org/trac/ghc/ticket/9880#comment:7
       Which could make overriding dependencies with mocks more pleasant
 - [ ] have GHC lift stage restriction
