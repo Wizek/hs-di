@@ -32,7 +32,7 @@ library
   --   QuasiQuotes
 
   ghc-options:
-    -fdefer-type-errors
+    -- -fdefer-type-errors
 
 executable hs-di-cases
   -- type:                exitcode-stdio-1.0
@@ -51,9 +51,9 @@ executable hs-di-cases
     TemplateHaskell
     QuasiQuotes
   ghc-options:
-    -ddump-splices
-    -ddump-to-file
-    -fdefer-type-errors
+    -- -ddump-splices
+    -- -ddump-to-file
+    -- -fdefer-type-errors
 
 test-suite hs-di-test
   type:                exitcode-stdio-1.0
@@ -97,14 +97,14 @@ test-suite hs-di-test
     -with-rtsopts=-N
     -O0
 
-    -fdefer-type-errors
     -- TODO:
     -- 'ghc-options: -fdefer-type-errors' is fine during development but is not
     -- appropriate for a distributed package. Alternatively, if you want to use this,
     -- make it conditional based on a Cabal configuration flag (with 'manual: True'
     -- and 'default: False') and enable that flag during development.
-    -ddump-splices
-    -ddump-to-file
+    -- -fdefer-type-errors
+    -- -ddump-splices
+    -- -ddump-to-file
 
     -- -fforce-recomp
   default-language:    Haskell2010
