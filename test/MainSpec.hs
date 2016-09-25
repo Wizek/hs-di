@@ -581,16 +581,25 @@ displayLoadingInfo = id
 
 -- ghcid = unsafePerformIO $ newIORef Nothing
 -- ghcid = unsafePerformIO $ newMVar Nothing
+
 setUpGhcid = {-Hspec.runIO $-} do
-  lookupStore 0 >>= \case
+  (lookupStore 0 $> handle) >>= \case
     Nothing -> do
       (g, ls) <- startGhci "stack ghci hs-di:exe:hs-di-cases" (Just ".") (const $ const (return ()))
       displayLoadingInfo ls
-      newStore g
+      (newStore g >> return ()) `catch` (\(e :: SomeException) -> print (2, e))
       -- writeIORef ghcid $ Just g
       return g
     Just s  -> readStore s
-
+  where
+  handle = (`catch` f)
+  f (e :: SomeException) = do
+    print (1, e)
+    return Nothing
+  -- [ ] TODO Handle:
+  --     Test suite failure for package hs-di-0.2.2
+  --         hs-di-test:  exited with: ExitFailure (-11)
+  --     Logs printed to console
 
 shouldBeStr :: String -> String -> IO ()
 actual `shouldBeStr` expected
