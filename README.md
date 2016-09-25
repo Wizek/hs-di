@@ -200,16 +200,110 @@ Additional inspiration came when I was looking for ways to make DI work in a sta
 
 ### Todo checklist
 
-- [x] `(v0.2+)` make multiple arguments work
-- [x] `(v0.2+)` Simplify Deps
-- [x] `(v0.2+)` reorder arguments of override
-- [x] `(v0.2+)` try with some real-life code
-- [x] `(v0.2+)` Write quasi quoter or TH splicer that writes the `Deps` definitions too
-- [x] `(v0.2+)` look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
-- [x] `(v0.3+)` Support function headers that are not immediately below
-  - [ ] Consider using haskell-source-meta to extract parameter info 
-- [x] `(v0.3+)` work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
-- [x] `(v0.3+)` Allow single dependency more than once
+- [x] `v0.2+` make multiple arguments work
+- [x] `v0.2+` Simplify Deps
+- [x] `v0.2+` reorder arguments of override
+- [x] `v0.2+` try with some real-life code
+- [x] `v0.2+` Write quasi quoter or TH splicer that writes the `Deps` definitions too
+- [x] `v0.2+` look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
+- [x] `v0.3+` Support function headers that are not immediately below
+    - [ ] Consider using haskell-source-meta to extract parameter info 
+- [x] `v0.3+` work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
+- [x] `v0.3+` Allow single dependency more than once
 - [ ] have GHC support Dec TH splices in let bindings: https://ghc.haskell.org/trac/ghc/ticket/9880#comment:7
       Which could make overriding dependencies with mocks more pleasant
 - [ ] have GHC lift stage restriction
+
+### Experimental Features
+
+#### "Inject Gradual": Gradually introduce DI
+
+
+```haskell
+-- Lib.hs
+{-# language TemplateHaskell #-}
+
+module Lib where
+
+import DI
+
+injG
+nounI = "World"
+
+injG
+sentence :: String
+sentenceI noun = "Hello " ++ noun
+
+injG
+statementI sentence = sentence ++ "!"
+
+legacyStatement = sentence ++ "..."
+```
+
+The `injG` top level `Q [Dec]` splice requires the dependency name to end with the suffix `I`, and defines an injected (assembled) value without the suffix to be used in legacy code not yet part of dependency injection. E.g. `nounI` --> `noun`. This allows for more gradual transition of a codebase into using DI, since declarations can be updated one at a time while allowing the program to remain able to be compiled and identical in terms of execution and behaviour.
+
+```
+Lib.hs:11:1-3: Splicing declarations
+    injG
+  ======>
+    sentenceD = Dep "sentence" [nounD]
+    sentenceT = (sentenceI, nounT)
+    sentenceA = sentenceI nounA
+    sentence = sentenceA
+```
+
+#### Inject All
+
+```haskell
+-- Lib.hs
+{-# language TemplateHaskell #-}
+
+module Lib where
+
+import DI
+
+injAllG
+
+sentenceI noun = "Hello " ++ noun
+nounI = "World"
+statementI sentence = sentence ++ "!"
+```
+
+This allows us to overcome multiple limitations of TemplateHaskell having to do with scoping, and avoid errors such as `Lib.hs:10:1: Not in scope: ‘noun’`.
+It also allows us to define our declarations in arbitrary order.
+
+```
+Lib.hs:8:1-7: Splicing declarations
+    injAllG
+  ======>
+    sentenceD = Dep "sentence" Original Pure [nounD] :: Deps
+    sentenceT = (sentenceI, nounT)
+    sentenceA = sentenceI noun
+    sentence = sentenceA
+    nounD = Dep "noun" Original Pure [] :: Deps
+    nounT = (nounI)
+    nounA = nounI
+    noun = nounA
+    statementD = Dep "statement" Original Pure [sentenceD] :: Deps
+    statementT = (statementI, sentenceT)
+    statementA = statementI sentence
+    statement = statementA
+```
+
+Some further reading on the subject: http://stackoverflow.com/questions/20876147/haskell-template-haskell-and-the-scope
+
+#### Override inline
+
+This allows us to define short and ad-hoc mocks inline
+
+```haskell
+$(assemble $ override "noun" "\"there\"" $ statementD) `shouldBe` "Hello there!"
+```
+
+Alternatively, if one uses a HereDoc such as [`interpolatedstring-perl6`](https://hackage.haskell.org/package/interpolatedstring-perl6) dealing with quotation marks can be simpler:
+
+```haskell
+$(assemble $ override "noun" [qc|"there"|] $ statementD) `shouldBe` "Hello there!"
+```
+
+
