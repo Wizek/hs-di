@@ -15,6 +15,7 @@ import Data.List as L
 import Language.Haskell.Meta (parseExp)
 import Data.Either
 import System.IO.Unsafe
+import qualified Data.Set as Set
 
 assemble :: Deps -> Q Exp
 assemble = convertDepsViaTuple .> return
@@ -67,6 +68,10 @@ type Deps = DepsG String
 --          type Deps = DepsG Exp
 --          or
 --          type Deps = DepsG ExpQ
+
+instance Ord a => Ord (DepsG a) where
+  compare (getDep -> (_, n1, _)) (getDep -> (_, n2, _)) =
+    compare n1 n2
 
 mapDepNames :: (a -> b) -> DepsG a -> DepsG b
 mapDepNames f (getDep -> (c, n, xs)) = c (f n) (map (mapDepNames f) xs)
@@ -178,10 +183,30 @@ convertDepsViaTuple deps@(name -> n) = LetE
   [ValD (tuplePattern deps) (NormalB (VarE $ mkName $ n ++ "T")) []]
   (convertDepsToExp deps)
 
-tuplePattern d@(getDep -> (_, n, ds)) = tuplePattern' d n ds
+tuplePattern d@(getDep -> (_, n, ds)) = tuplePattern' Set.empty d n ds $> fst
 
-tuplePattern' d n [] = wrapNameFor d
-tuplePattern' d n ds = TupP $ (wrapNameFor d) : map tuplePattern ds
+tuplePattern' set d n [] = inSet set d $ \set -> (wrapNameFor d, set)
+tuplePattern' set d n ds = inSet set d $ \set ->
+  let
+    (ds', set') = foldr f ([], set) ds
+    -- f (getDep -> (_, n, ds)) (ls, set) = isSet set n $ \set -> ()
+    f d@(getDep -> (_, n, ds)) (ls, set) = let (d', set') = tuplePattern' set d n ds in (d':ls, set')
+      -- inSetOrInsert n set (WildP:ls, set) $ \set -> ( set)
+
+  in (TupP $ (wrapNameFor d) : ds', set')
+
+inSetOrInsert a set o1 o2 =
+  if a `Set.member` set
+  then o1
+  else o2 $ a `Set.insert` set
+
+inSet set d x =
+  if d `Set.member` set
+  then (WildP, set)
+  -- else x
+  else x $ d `Set.insert` set
+
+
 
 wrapNameFor (Dep n Original _ _) = VarP $ mkName n
 wrapNameFor (Dep _ Replaced _ _) = WildP
@@ -220,9 +245,11 @@ parseLineToDepsG ls = (name, nameI, nameD, deps, args)
   deps = map d args
   d n = n ++ "D"
 
--- groupByIndentation = id
-joinIndentedLines = id
+groupByIndentation = id
   .> groupBy (const $ (" " `isPrefixOf`))
+
+joinIndentedLines = id
+  .> groupByIndentation
   .> map (intercalate "")
 
 findFirstFnDecLine ls = ls

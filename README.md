@@ -209,6 +209,7 @@ Additional inspiration came when I was looking for ways to make DI work in a sta
 - [ ] Support function headers that are not immediately below
   - [ ] Consider using haskell-source-meta to extract parameter info 
 - [ ] work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
+- [x] Allow single dependency more than once
 - [ ] have GHC support Dec TH splices in let bindings: https://ghc.haskell.org/trac/ghc/ticket/9880#comment:7
       Which could make overriding dependencies with mocks more pleasant
 - [ ] have GHC lift stage restriction

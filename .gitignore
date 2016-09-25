@@ -22,3 +22,6 @@ cabal.project.local
 
 .idea
 *.iml
+
+# These files are generated on the fly
+test/Scenarios

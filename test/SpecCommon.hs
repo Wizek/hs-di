@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-missing-fields #-}
+
 module SpecCommon (module SpecCommon) where
 
 import Common                         as SpecCommon

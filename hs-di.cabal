@@ -25,6 +25,7 @@ library
     , template-haskell
     , compose-ltr
     , haskell-src-meta
+    , containers
   default-language:    Haskell2010
   -- default-extensions:
   --   TemplateHaskell
@@ -42,6 +43,7 @@ executable hs-di-cases
     , template-haskell
     , compose-ltr
     , haskell-src-meta
+    , containers
     , time
     -- , hs-di
   default-language:    Haskell2010
@@ -70,6 +72,7 @@ test-suite hs-di-test
     base
     , hs-di
     , hspec
+    , HUnit
     , hspec-core
     , hspec-expectations
     , QuickCheck
@@ -85,6 +88,7 @@ test-suite hs-di-test
     , foreign-store
     , interpolatedstring-perl6
     , interpolate
+    , regex-tdfa
   ghc-options:
     -threaded
     -rtsopts
@@ -106,6 +110,8 @@ test-suite hs-di-test
     TemplateHaskell
     QuasiQuotes
     LambdaCase
+    ViewPatterns
+    ScopedTypeVariables
 
 source-repository head
   type:     git

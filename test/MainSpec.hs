@@ -34,6 +34,9 @@ import Test.Hspec.Expectations
 import Text.InterpolatedString.Perl6
 import Data.String.Interpolate.Util
 import SpecCommon
+import Data.Monoid
+import Text.Regex.TDFA
+import Test.HUnit.Lang (HUnitFailure(..))
 
 inj
 testIdiomaticImportMock = 44
@@ -212,10 +215,18 @@ specWith maybeG = do
       (`shouldSatisfy` ("asdasdD = Dep \"asdasd\" Original Pure []" `isPrefixOf`)) |]
 
   describe "idiomatic module support" $ do
-    specify "utils" $ do
-      -- (convertDepsViaTuple (dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
+    specify "tuplePattern" $ do
       (tuplePattern (dep "a" []) $> pprint) `shouldBe` "a"
       (tuplePattern (dep "a" [dep "b" []]) $> pprint) `shouldBe` "(a, b)"
+      (tuplePattern (dep "a" [dep "b" [], dep "c" []]) $> pprint) `shouldBe` "(a, b, c)"
+      -- (tuplePattern (dep "a" [dep "b" [], dep "b" []]) $> pprint) `shouldBe` "(a, b, _)"
+      -- (tuplePattern (dep "a" [dep "b" [], dep "b" []]) $> pprint) `shouldSatisfy`
+      --   ((=~ "b") .> (== 1))
+      (tuplePattern (dep "a" [dep "b" [], dep "b" []]) $> pprint $>
+        (=~ "b")) `shouldBe` (1 :: Int)
+
+    specify "utils" $ do
+      -- (convertDepsViaTuple (dep "a" []) $> runQ $> fmap pprint) `shouldReturn` "let a = aT in a"
       (convertDepsViaTuple (dep "a" []) $> pprint) `shouldBe` "let a = aT\n in a"
       (convertDepsViaTuple (dep "a" [dep "b" []]) $> pprint) `shouldBe`
         "let (a, b) = aT\n in a b"
@@ -355,29 +366,11 @@ specWith maybeG = do
         exec g "xxx2" `shouldReturn` ["34"]
 
       specify "common dependency" $ \g -> do
-        let
-            shouldBeStr :: String -> String -> IO ()
-            actual `shouldBeStr` expected
-              | actual == expected = return ()
-              | otherwise = expectationFailure failMsg
+        -- pendingWith [qx|
+        --   s
+        --   d
+        -- |]
 
-              where
-                failMsg =
-                  [qx|
-                    Actual:
-                    {actual}
-
-                    Expected:
-                    {expected}
-                  |]
-                -- failMsg = T.unpack
-                --   [text|
-                --     $(T.pack expected)
-                --     ${T.pack actual}
-                --   |]
-              -- (actual `shouldReturn` expected) `catch` (\(e :: SomeException) ->
-              --   putStrLn actual
-              -- )
         T.writeFile "test/Scenarios/CommonDependency.hs" [text|
           -- module CommonDependency where
           import DI
@@ -392,7 +385,35 @@ specWith maybeG = do
           d b c = b + c
         |]
         loadModule' g "Scenarios/CommonDependency"
-        (exec g "$(assemble dD)" >>= unlines.>return) >>= (`shouldBeStr` unlines ["8"])
+        execAssert g "$(assemble dD)" (`shouldBeStr` unlines ["8"])
+
+        -- let
+        --   (_, (_, aT), _) = dT
+        --   aA = aT
+
+      specify "common dependency 2" $ \g -> do
+        T.writeFile "test/Scenarios/CommonDependency2.hs" [text|
+          import DI
+          inj
+          x = 1
+          inj
+          a x = x + 1
+          inj
+          b a = a + 2
+          inj
+          c a = a + 4
+          inj
+          d b c = b + c
+        |]
+        loadModule' g "Scenarios/CommonDependency2"
+
+        execAssert g "$(assemble dD)" (`shouldBeStr` unlines ["10"])
+
+        -- failDetails "foobar" $ 1 `shouldBe` 2
+
+        -- 1 `shouldBe` 2
+        --   $> failDetails "foobar"
+        --   $> failDetails "asdasd"
 
 
       -- specify "injAll" $ \g -> do
@@ -417,7 +438,8 @@ specWith maybeG = do
         -- (exec g "startupTimeStringD" $> fmap unlines) >>= putStrLn
         -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines)
         --   `shouldReturn` unlines ["123"]
-        (exec g "$(assembleSimple xxxD)" $> fmap unlines) >>= putStrLn
+
+        (exec g "$(assembleSimple xxxD)") >>= (unlines .> putStrLn)
 
         loadModule' g "IOScenarioMain"
         -- exec g "xxx" >>=  unlines .> putStrLn
@@ -503,7 +525,8 @@ loadModule' g modName = do
   result <- exec g $ ":load test/" ++ modName ++ ".hs"
   -- if result $> last $> ("Ok, modules loaded" `isPrefixOf`)
   if result $> any ("Ok, modules loaded" `isPrefixOf`)
-    then map printForward result $> sequence_
+    -- then map printForward result $> sequence_
+    then return ()
     else error $ "\n" ++ unlines result
 
 -- runOnlyPrefix = ["!"]
@@ -526,9 +549,12 @@ printForward = (prefix ++) .> putStrLn
 prefix = "  "
 
 
-xcontext n _ = context n $ it "xcontext" pending
+noop = return ()
+dont _ = noop
 
+xcontext n _ = context n $ it "xcontext" pending
 xit n _ = it n pending
+xspecify n _ = specify n pending
 
 displayLoadingInfo = id
   .> map (\case
@@ -559,3 +585,57 @@ setUpGhcid = {-Hspec.runIO $-} do
       -- writeIORef ghcid $ Just g
       return g
     Just s  -> readStore s
+
+
+shouldBeStr :: String -> String -> IO ()
+actual `shouldBeStr` expected
+  | actual == expected = return ()
+  | otherwise = expectationFailure failMsg
+  where
+    failMsg =
+      [qx|
+        Actual:   {singleLineOrIndent actual}
+        Expected: {singleLineOrIndent expected}
+      |]
+    -- failMsg = T.unpack
+    --   [text|
+    --     $(T.pack expected)
+    --     ${T.pack actual}
+    --   |]
+  -- (actual `shouldReturn` expected) `catch` (\(e :: SomeException) ->
+  --   putStrLn actual
+  -- )
+
+singleLineOrIndent = f
+  where
+  f str@(isMultiline -> True) = "\n" <> indent 2 str
+  f str = str
+
+isMultiline = ('\n' `elem`)
+indent n str =
+  str
+  $> lines
+  $> map (replicate n ' ' ++)
+  $> unlines
+
+removeInteractive = id
+  .> groupByIndentation
+  .> filter (concat .> ("<interactive>:" `isPrefixOf`) .> not)
+  .> concat
+
+exec' g cmd = do
+  stdoutB <- newIORef []
+  stderrB <- newIORef []
+  let
+    f Stdout str = modifyIORef stdoutB (<> [str])
+    f Stderr str = modifyIORef stderrB (<> [str])
+  execStream g cmd f
+  return (,) <*> readIORef stdoutB <*> readIORef stderrB
+
+failDetails details assert = do
+  assert `catch` \(HUnitFailure loc msg) -> do
+    throw $ HUnitFailure loc $ msg ++ "\n" ++ details
+
+execAssert g cmd assert = exec g cmd
+  >>= (\full -> full $> removeInteractive $> unlines $> assert
+    $> failDetails ("Full: " <>  (full $> unlines $> singleLineOrIndent)))
