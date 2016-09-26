@@ -50,12 +50,15 @@ bI :: Int
 bI = 2
 
 
-mainColor = HC.hspecWith HC.defaultConfig{HC.configColorMode=HC.ColorAlways} spec
+mainColor = HC.hspecWith
+  HC.defaultConfig{HC.configColorMode=HC.ColorAlways}
+  $ specWith setUpGhcidCached
+
 main = hspec spec
 
-spec = specWith Nothing
+spec = specWith setUpGhcidUncached
 
-specWith maybeG = do
+specWith setUpGhcid = do
   let
     dep n c = Dep n Original Pure c
     rep n c = Dep n Replaced Pure c
@@ -352,7 +355,7 @@ specWith maybeG = do
     --         else error $ "\n" ++ unlines result
 
 
-    context "ghcid" $ beforeAll (maybe setUpGhcid return maybeG) $ do
+    context "ghcid" $ beforeAll setUpGhcid $ do
 
       it "ghcid test 1" $ \g -> do
         exec g "1+2" `shouldReturn` ["3"]
@@ -574,7 +577,7 @@ displayLoadingInfo = id
   prefix = "  "
 
 
--- setUpGhcid = do
+-- setUpGhcidCached = do
 --   (g, ls) <- startGhci "stack ghci hs-di:exe:hs-di-cases" (Just ".") (const $ const (return ()))
 --   displayLoadingInfo ls
 --   return g
@@ -582,11 +585,15 @@ displayLoadingInfo = id
 -- ghcid = unsafePerformIO $ newIORef Nothing
 -- ghcid = unsafePerformIO $ newMVar Nothing
 
-setUpGhcid = {-Hspec.runIO $-} do
+setUpGhcidUncached = do
+  (g, ls) <- startGhci "stack ghci hs-di:exe:hs-di-cases" (Just ".") (const $ const (return ()))
+  displayLoadingInfo ls
+  return g
+
+setUpGhcidCached = {-Hspec.runIO $-} do
   (lookupStore 0 $> handle) >>= \case
     Nothing -> do
-      (g, ls) <- startGhci "stack ghci hs-di:exe:hs-di-cases" (Just ".") (const $ const (return ()))
-      displayLoadingInfo ls
+      g <- setUpGhcidUncached
       (newStore g >> return ()) `catch` (\(e :: SomeException) -> print (2, e))
       -- writeIORef ghcid $ Just g
       return g
@@ -596,7 +603,7 @@ setUpGhcid = {-Hspec.runIO $-} do
   f (e :: SomeException) = do
     print (1, e)
     return Nothing
-  -- [ ] TODO Handle:
+  -- [x] TODO Handle:
   --     Test suite failure for package hs-di-0.2.2
   --         hs-di-test:  exited with: ExitFailure (-11)
   --     Logs printed to console
