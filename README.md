@@ -1,4 +1,4 @@
-# Haskell Dependency Injection [![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat)](https://hackage.haskell.org/package/hs-di)
+# Haskell Dependency Injection [![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat-square)](https://hackage.haskell.org/package/hs-di)
 
 A promising Dependency Injection system for Haskell.
 
