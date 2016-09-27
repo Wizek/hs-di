@@ -623,8 +623,8 @@ actual `shouldBeStr` expected
   where
     failMsg =
       [qx|
-        Actual:   {singleLineOrIndent actual}
         Expected: {singleLineOrIndent expected}
+        Actual:   {singleLineOrIndent actual}
       |]
     -- failMsg = T.unpack
     --   [text|
