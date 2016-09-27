@@ -465,6 +465,14 @@ specWith setUpGhcid = do
       --   exec g "xxx2" `shouldReturn` ["34"]
       --   -- return ()
       --   -- print 1
+      specify "POC: be able to reuse assemble in identA DecsQ of inj*" $ \g -> do
+        T.writeFile "test/Scenarios/POCAssemble.hs" [text|
+          import DI
+          inj
+          a = 1
+        |]
+        loadModule' g "Scenarios/POCAssemble"
+        execAssert g [qx| $(assemble $(varE $ mkName "aD")) |] (`shouldBeStr` "1\n")
 
     -- TODO: Handle splices in aa
     -- [aa| $(assemble $ override "foo" "33" barD) `shouldBe` 34 |]
