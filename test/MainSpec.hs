@@ -439,6 +439,53 @@ specWith setUpGhcid = do
         loadModule' g "Scenarios/injAll2"
         execAssert g "$(assemble cD)" (`shouldBeStr` unlines ["6"])
 
+      -- http://stackoverflow.com/questions/7370073/testing-functions-in-haskell-that-do-io
+      specify "SO" $ \g -> do
+        T.writeFile "test/Scenarios/SO.txt" [qx|abc|]
+        T.writeFile "test/Scenarios/SO.hs" [text|
+          {-# language NoMonomorphismRestriction #-}
+          module Scenarios.SO where
+          import DI
+          injLeaf "readFile"
+
+          -- | 4) Counts the number of characters in a file
+          inj
+          numCharactersInFileA :: FilePath -> IO Int
+          numCharactersInFile readFile = \fileName -> do
+            contents <- readFile fileName
+            return (length contents)
+        |]
+        T.writeFile "test/Scenarios/SOSpec.hs" [text|
+          import DI
+          import Scenarios.SO
+
+          main = do
+            let readFileMock1 _ = return "x"
+            $(assemble
+              $ override "readFile" "readFileMock1"
+              $ numCharactersInFileD) "test/Scenarios/SO.txt"
+              >>= (`shouldBe` 1)
+
+            let readFileMock2 a = return ('x' : a)
+            $(assemble
+              $ override "readFile" "readFileMock2"
+              $ numCharactersInFileD) "test/Scenarios/SO.txt"
+              >>= (`shouldBe` 22)
+
+            $(assemble numCharactersInFileD) "test/Scenarios/SO.txt"
+              >>= (`shouldBe` 3)
+              -- This last assertuion is here to demonstrate that the original
+              -- behavior also works, but naturally we would want to do as
+              -- little IO as possible in unit tests.
+
+          -- assertion function
+          shouldBe = shouldBeF show
+          shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
+                                      | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
+        |]
+        loadModule' g "Scenarios/SOSpec"
+        execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
       -- it ">>= support" $ \g -> do
       --   -- exec g ":load test/IOScenario.hs" >>= print
       --   loadModule' g "IOScenario"
