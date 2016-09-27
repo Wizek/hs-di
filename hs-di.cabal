@@ -50,6 +50,7 @@ executable hs-di-cases
   default-extensions:
     TemplateHaskell
     QuasiQuotes
+    NoMonomorphismRestriction
   ghc-options:
     -- -ddump-splices
     -- -ddump-to-file
