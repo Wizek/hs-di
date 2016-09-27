@@ -293,7 +293,7 @@ injDecsG n (name, nameI, nameD, depsD, deps) =
     $(return $ VarP $ mkName $ nameT $ name) =
       $(return $ TupE $ map (mkName .> VarE) ((name ++ "I") : map (++ "T") deps))
     $(return $ VarP $ mkName $ name ++ "A") =
-      -- $(assemble $ depOP nameI (map (flip depOP []) deps))
+      -- -- $(assemble $ depOP nameI (map (flip depOP []) deps))
       $(return $ convertDepsToExp $ depOP nameI (map (flip depOP []) deps))
     $(return $ VarP $ mkName $ name) =
       $(if n == 'Pure
