@@ -603,6 +603,13 @@ specWith setUpGhcid = do
         loadModule' g "Scenarios/POCAssemble"
         execAssert g [qx| $(assemble $(varE $ mkName "aD")) |] (`shouldBeStr` "1\n")
 
+        -- describe "SO 232" $ do
+        --   specify "SO 232" $ \g -> do
+        --     -- 1 `shouldBe` 2
+        --     [ab| 1 `shouldBe` 2 |]
+
+        --   [aa| \_ -> ("1" `shouldBeStr` "2") |]
+
     -- TODO: Handle splices in aa
     -- [aa| $(assemble $ override "foo" "33" barD) `shouldBe` 34 |]
     specify "override with simple expressions" $ do
