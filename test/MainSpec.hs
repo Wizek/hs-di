@@ -486,6 +486,88 @@ specWith setUpGhcid = do
         loadModule' g "Scenarios/SOSpec"
         execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
 
+      Hspec.runIO $ T.writeFile "test/Scenarios/SimpleShouldBe.hs" [text|
+        module Scenarios.SimpleShouldBe where
+
+        -- assertion function
+        shouldBe = shouldBeF show
+        shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
+                                    | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
+      |]
+
+      describe ">>= support" $ do
+        specify "! >>= at most once 1" $ \g -> do
+          T.writeFile "test/Scenarios/BindOnce1.hs" [text|
+            module Scenarios.BindOnce1 where
+            import DI
+            injAllG
+
+            aI = return 1
+            bI a = a
+            cI a = a
+            dI b c = b >>= \b -> c >>= \c -> return $ b + c
+            -- dI b c = (+) <$> b <*> c
+          |]
+          T.writeFile "test/Scenarios/BindOnce1Spec.hs" [text|
+            import DI
+            import ComposeLTR
+            import Scenarios.SimpleShouldBe
+            import Scenarios.BindOnce1
+            import Data.IORef
+
+            main = do
+              $(assemble $ dD) >>= (`shouldBe` 2)
+
+              counter <- newIORef 0
+              $(dD
+                $> override "a" "modifyIORef counter (+1) >> return 2"
+                $> assemble) >>= (`shouldBe` 4)
+
+              readIORef counter >>= (`shouldBe` 1)
+          |]
+
+          loadModule' g "Scenarios/BindOnce1Spec"
+          execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+        specify ">>= at most once 2" $ \g -> do
+          T.writeFile "test/Scenarios/BindOnce2.hs" [text|
+            module Scenarios.BindOnce2 where
+            import DI
+
+            injMG
+            aI = return 1
+
+            injG
+            bI a = a
+
+            injG
+            cI a = a
+
+            injG
+            dI b c = b + c
+          |]
+          T.writeFile "test/Scenarios/BindOnce2Spec.hs" [text|
+            import DI
+            import ComposeLTR
+            import Scenarios.SimpleShouldBe
+            import Scenarios.BindOnce2
+
+            main = do
+              $(assemble $ dD) `shouldBe` 2
+
+              -- $(assemble $ dD) >>= (`shouldBe` 2)
+
+              -- counter <- newIORef 0
+              -- $(dD
+              --   $> override "a" "modifyIORef counter (+1) >> return 2"
+              --   $> assemble) >>= (`shouldBe` 4)
+
+              -- readIORef counter >>= (`shouldBe` 1)
+
+          |]
+          loadModule' g "Scenarios/BindOnce2Spec"
+          execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
       -- it ">>= support" $ \g -> do
       --   -- exec g ":load test/IOScenario.hs" >>= print
       --   loadModule' g "IOScenario"
