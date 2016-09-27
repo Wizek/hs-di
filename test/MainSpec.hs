@@ -681,9 +681,10 @@ loadModule' g modName = do
     then return ()
     else error $ "\n" ++ unlines result
 
--- runOnlyPrefix = ["!"]
+runOnlyPrefix = ["!"]
 -- runOnlyPrefix = ["unindent"]
-runOnlyPrefix = [""]
+-- runOnlyPrefix = ["SO"]
+-- runOnlyPrefix = [""]
 specify a = if (any (`isPrefixOf` a) runOnlyPrefix)
   then Hspec.specify a
   else (\_->return ())
