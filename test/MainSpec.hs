@@ -500,28 +500,28 @@ specWith setUpGhcid = do
     -- specify "override, change deps" $ do
     --   pending
 
-  context "unindent" $ do
-    [aa| unindent (unlines [
+  specify "unindent" $ do
+    [ab| unindent (unlines [
         "a"
       ]) `shouldBe` (unlines [
         "a"
       ]) |]
 
-    [aa| unindent (unlines [
+    [ab| unindent (unlines [
         "  a"
       ]) `shouldBe` (unlines [
         "a"
       ]) |]
 
-    [aa| unindent (unlines [
-        "  a"
-      , "a"
-      ]) `shouldBe` (unlines [
+    [ab| unindent (unlines [
         "  a"
       , "a"
+      ]) `shouldBe` (unlines [
+        "  a"
+      , "a"
       ]) |]
 
-    [aa| unindent (unlines [
+    [ab| unindent (unlines [
         "  a"
       , " a"
       ]) `shouldBe` (unlines [
