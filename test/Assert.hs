@@ -8,6 +8,7 @@ import Language.Haskell.Meta
 import ComposeLTR
 import Data.String.Utils
 import Data.Monoid
+import Data.String.Interpolate.Util
 -- import Language.Haskell.QuasiQuotes
 
 aa :: QuasiQuoter
@@ -26,6 +27,6 @@ ab = QuasiQuoter { quoteExp = f }
   f :: String -> Q Exp
   f ss = [| $(parseExp s $> either error return) $> $(n "failDetails") ("\nAssert: " <> $(n "singleLineOrIndent") $(stringE s)) |]
     where
-    s = strip ss
+    s = strip $ unindent ss
 
 n s = return $ VarE $ mkName s
