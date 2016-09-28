@@ -535,6 +535,8 @@ specWith setUpGhcid = do
             module Scenarios.BindOnce2 where
             import DI
 
+            -- injG
+            -- aI = 1
             injMG
             aI = return 1
 
@@ -544,8 +546,12 @@ specWith setUpGhcid = do
             injG
             cI a = a
 
+            injMG
+            eI c@b = return $ 2 + c
+
             injG
-            dI b c = b + c
+            dI b c e = b + c
+
           |]
           T.writeFile "test/Scenarios/BindOnce2Spec.hs" [text|
             import DI
@@ -567,6 +573,34 @@ specWith setUpGhcid = do
 
           |]
           loadModule' g "Scenarios/BindOnce2Spec"
+          execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+        specify "dependency for monadic value" $ \g -> do
+          T.writeFile "test/Scenarios/BindOnce3.hs" [text|
+            module Scenarios.BindOnce3 where
+            import DI
+
+            injG
+            aI = 1
+
+            injMG
+            bI a = return $ a + 1
+
+            injG
+            cI b = b
+
+          |]
+          T.writeFile "test/Scenarios/BindOnce3Spec.hs" [text|
+            import DI
+            import ComposeLTR
+            import Scenarios.SimpleShouldBe
+            import Scenarios.BindOnce3
+
+            main = do
+              $(assemble $ cD) >>= (`shouldBe` 2)
+
+          |]
+          loadModule' g "Scenarios/BindOnce3Spec"
           execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
 
       -- it ">>= support" $ \g -> do
@@ -598,6 +632,7 @@ specWith setUpGhcid = do
       specify "POC: be able to reuse assemble in identA DecsQ of inj*" $ \g -> do
         T.writeFile "test/Scenarios/POCAssemble.hs" [text|
           import DI
+          import Language.Haskell.TH
           inj
           a = 1
         |]
@@ -719,10 +754,10 @@ loadModule' g modName = do
     then return ()
     else error $ "\n" ++ unlines result
 
-runOnlyPrefix = ["!"]
+-- runOnlyPrefix = ["!"]
 -- runOnlyPrefix = ["unindent"]
 -- runOnlyPrefix = ["SO"]
--- runOnlyPrefix = [""]
+runOnlyPrefix = [""]
 specify a = if (any (`isPrefixOf` a) runOnlyPrefix)
   then Hspec.specify a
   else (\_->return ())

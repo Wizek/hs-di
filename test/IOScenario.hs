@@ -18,9 +18,10 @@ injG
 startupTimeStringBBBI startupTime = show (startupTime :: UTCTime) ++ "-BBB"
 
 injG
+xxxI :: Show a => a
 xxxI
-  a@startupTimeString
-  b@startupTimeStringBBB
+  a @ (InjIO startupTimeString)
+  b @ (InjIO startupTimeStringBBB)
   = a ++ b
 -- startupTimeStringIOxxxI startupTime = startupTime >>= show .> return
 

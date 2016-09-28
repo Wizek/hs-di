@@ -1,6 +1,7 @@
 {-# language TemplateHaskell #-}
 {-# language ViewPatterns #-}
 {-# language PatternSynonyms #-}
+{-# language LambdaCase #-}
 
 module DependencyInjector (
   module DependencyInjector,
@@ -19,6 +20,9 @@ import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 import Data.Monoid
 
+pattern Inj a = a
+pattern InjIO a = a
+
 assemble :: Deps -> Q Exp
 assemble = convertDepsViaTuple .> return
 
@@ -27,26 +31,33 @@ assembleSimple = convertDepsToExp .> return
 
 convertDepsToExp :: Deps -> Exp
 convertDepsToExp d = d $> id
-  .> mapDepNames (parseExp .> either errF id)
-  -- .> mapChildren reverse
-  .> convertDepsToExp'
+  .> mapDeps (\case
+    d@Dep{kind=Monadic} -> d{cs = [], name = (name d <> "UnIO")}
+    d -> d
+  )
+  .> convertPure
   .> (\exp->
       if monadicDeps == []
       then exp
       else doExpr exp
     )
   where
+    convertPure = id
+      .> mapDepNames (parseExp .> either errF id)
+      -- .> mapChildren reverse
+      .> convertDepsToExp'
+
     errF = ("Error parsing: " ++) .> error
 
     monadicDeps = d
       $> Tree.unfoldTree ((,) <$> id <*> cs)
-      -- $> Tree.unfoldTree (\d@Dep{cs}->(d, cs))
       $> Tree.flatten
+      -- TODO switch to O(n * log n)
       $> nub
       $> filter (kind .> (== Monadic))
 
     doExpr inside = monadicDeps
-      $> map (\(name -> n)-> BindS (VarP $ mkName n) (VarE (mkName n)))
+      $> map (\d@(name -> n)-> BindS (VarP $ mkName (n <> "UnIO")) (convertPure d))
       $> (<> [NoBindS (AppE (VarE 'return) $ inside)])
       $> DoE
 
@@ -63,8 +74,8 @@ convertDepsToExp' (getDep -> (_, name,   [])) = name
 --   AppE (VarE $ mkName "unsafePerformIO") $ convertDepsToExp' d{kind=Pure}
 
 
-convertDepsToExp' d@(Dep{kind=Monadic, cs=(_:_)}) =
-  error "Children not yet supported in Monadic deps"
+-- convertDepsToExp' d@(Dep{kind=Monadic, cs=(_:_)}) =
+--   error "Children not yet supported in Monadic deps"
 
 convertDepsToExp' (getDep -> (_, name, x:xs)) =
   convertDepsToExp' (depOP (AppE name (convertDepsToExp' x)) xs)
