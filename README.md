@@ -120,7 +120,7 @@ A couple things to note:
   You don't have to concern yourself with them, it's part of the internal hidden API of the DI framework by design.  
   (If you are curious however, they stand for "Dependency definitions/`Deps`", "Tuple", "Assembled", and "Injectable", respectively.)  
 - As you can see, at the end of the day, all this machinery achieves pretty much the same what a developer would do by hand: `statement (sentence noun)`  
-  The beauty, however, is that this doesn't have to be done by hand, as it would become immensly tideous and time-consuming as soon as we start to handle more than a couple dependencies.  
+  The beauty, however, is that this doesn't have to be done by hand, as it would become immensly tedious and time-consuming as soon as we start to handle more than a couple dependencies.  
 - Mocking is equally elegant:  
   `let (statement, (sentence, _)) = statementT in statement (sentence nounMock)`  
   (translated from `$(assemble $ override "noun" "nounMock" $ statementD)`)
