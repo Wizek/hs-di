@@ -156,28 +156,33 @@ makeTimer putStrLn getCurrentTime = liftIO $ do
       Just a  -> putStrLn $ show time ++ ", diff: " ++ (show $ diffUTCTime time a)
 ```
 
-*source: https://github.com/Wizek/hs-di/blob/v0.2.1/test/NotSoEasyToTestCode.hs#L17-L26* 
+*(source: https://github.com/Wizek/hs-di/blob/v0.2.1/test/NotSoEasyToTestCode.hs#L17-L26)* 
 
 ```haskell
+mockConsole <- newIORef []
+cTime <- newIORef $ parseTime' "2000-01-01 00:00:00"
+let
+  putStrLnMock a = modifyIORef mockConsole (a :)
+  getCurrentTimeMock = readIORef cTime
+  readMockConsole = readIORef mockConsole >>= reverse .> return
+
 timer <- $(makeTimerD
-    $> override "putStrLn" "putStrLnMock"
-    $> override "getCurrentTime" "getCurrentTimeMock"
-    $> assemble
-  )
+  $> override "putStrLn" "putStrLnMock"
+  $> override "getCurrentTime" "getCurrentTimeMock"
+  $> assemble)
 
 readMockConsole `shouldReturn` []
 
-writeIORef cTime $ parseTime "2016-01-01 14:00:00"
 timer
-readMockConsole `shouldReturn` ["2016-01-01 14:00:00 UTC"]
+readMockConsole `shouldReturn` ["2000-01-01 00:00:00 UTC"]
 
-writeIORef cTime $ parseTime "2016-01-01 14:00:01"
+writeIORef cTime $ parseTime' "2000-01-01 00:00:00.0001"
 timer
 readMockConsole `shouldReturn`
-  ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"]
+  ["2000-01-01 00:00:00 UTC", "2000-01-01 00:00:00.0001 UTC, diff: 0.0001s"]
 ```
 
-*excerpt from: https://github.com/Wizek/hs-di/blob/v0.2.1/test/MainSpec.hs#L95-L149*
+*(source: https://github.com/Wizek/hs-di/blob/9fd5e4/test/MainSpec.hs#L135-L156)*
 
 ### Pros and cons of this approach
 
