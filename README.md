@@ -184,14 +184,12 @@ readMockConsole `shouldReturn`
   - `(+)` Supports values to be injected
   - `(+)` Supports functions to be injected
   - `(+2)` Supports overriding of arbitrary number and depth of dependencies
-  - `(+2)` Compile time type checking (despites strings being used, those too are checked)
+  - `(+2)` Compile time type checking (despites strings being used, those too are checked at compile time)
   - `(+)` Supports type variables
   - `(+)` Theoretically also supports surgically only overriding some subsets of dependencies
   - `(+)` Emulates how a human would do DI by hand, and does the hard work automatically
-  - `(+)` Some module support
-    - `(-.5)` The module support is not yet fully perfect
-    - `(-.5)` Due to limitations of Template Haskell declaration splices, "variable not in scope" errors can pop up that are annoying. Although it is in theory possible to work around these, and it is planned for a later release.
-  - `(?)` How is performance impacted? Does GHC notice `f (g x) (g x)`?
+  - `(+)` Modules are fully supported as of `v0.3+` 
+  - `(?)` How is compile/startup performance impacted? Does GHC notice `f (g x) (g x)`?
 
 ### Inspirations
 
