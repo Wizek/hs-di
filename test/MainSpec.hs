@@ -132,62 +132,28 @@ specWith setUpGhcid = do
   --   $(assemble $ dep "Prelude.*" []) 2 3 `shouldBe` 6
 
 
-  specify "code that is more real-life" $ do
-
-    let parseTime t =
-          fromJust $ parseTimeM True defaultTimeLocale "%Y-%m-%d %H:%M:%S%Q" t
+  specify "code from real-life" $ do
     mockConsole <- newIORef []
-    cTime <- newIORef $ parseTime "2016-01-01 14:00:00"
+    cTime <- newIORef $ parseTime' "2000-01-01 00:00:00"
     let
-      -- $(inj)
-      putStrLnMockD = dep "putStrLnMock" []
-      putStrLnMockT = putStrLnMock
       putStrLnMock a = modifyIORef mockConsole (a :)
-
-      -- readMockConsole = readIORef mockConsole >>= fmap reverse
-      readMockConsole = do
-        readIORef mockConsole >>= (reverse .> return)
-        -- readIORef mockConsole $> (fmap reverse)
-
-      -- $(inj)
-      getCurrentTimeMockD = dep "getCurrentTimeMock" []
-      getCurrentTimeMockT = getCurrentTimeMock
       getCurrentTimeMock = readIORef cTime
+      readMockConsole = readIORef mockConsole >>= reverse .> return
 
-      setUpThen cont = do
-        writeIORef mockConsole []
-        writeIORef cTime $ parseTime "2016-01-01 14:00:00"
-        timer <- $(makeTimerD
-            $> override "putStrLn" "putStrLnMock"
-            $> override "getCurrentTime" "getCurrentTimeMock"
-            $> assemble
-          )
-        timer
-        cont timer
+    timer <- $(makeTimerD
+      $> override "putStrLn" "putStrLnMock"
+      $> override "getCurrentTime" "getCurrentTimeMock"
+      $> assemble)
 
-    readMockConsole >>= (`shouldBe` [])
+    readMockConsole `shouldReturn` []
 
-    setUpThen $ \timer -> do
-      readMockConsole >>= (`shouldBe` ["2016-01-01 14:00:00 UTC"])
+    timer
+    readMockConsole `shouldReturn` ["2000-01-01 00:00:00 UTC"]
 
-    setUpThen $ \timer -> do
-      timer
-      readMockConsole >>= (`shouldBe`
-        ["2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00 UTC, diff: 0s"])
-
-    setUpThen $ \timer -> do
-      writeIORef cTime $ parseTime "2016-01-01 14:00:01"
-      timer
-      readMockConsole >>= (`shouldBe`
-        [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:01 UTC, diff: 1s"])
-
-    -- [x] TODO figure out a way to branch out just like with Jasmine-Given JS testing framework
-    setUpThen $ \timer -> do
-      writeIORef cTime $ parseTime "2016-01-01 14:00:00.00002"
-      timer
-      readMockConsole >>= (`shouldBe`
-        [ "2016-01-01 14:00:00 UTC", "2016-01-01 14:00:00.00002 UTC, diff: 0.00002s"])
-
+    writeIORef cTime $ parseTime' "2000-01-01 00:00:00.0001"
+    timer
+    readMockConsole `shouldReturn`
+      ["2000-01-01 00:00:00 UTC", "2000-01-01 00:00:00.0001 UTC, diff: 0.0001s"]
 
 
   describe "automatic deps declaration" $ do
@@ -879,3 +845,5 @@ failDetails details assert = do
 execAssert g cmd assert = exec g cmd
   >>= (\full -> full $> removeInteractive $> unlines $> assert
     $> failDetails ("Full: " <>  (full $> unlines $> singleLineOrIndent)))
+
+parseTime' = parseTimeM True defaultTimeLocale "%Y-%m-%d %H:%M:%S%Q" .> fromJust
