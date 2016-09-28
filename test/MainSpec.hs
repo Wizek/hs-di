@@ -355,334 +355,6 @@ specWith setUpGhcid = do
     --         else error $ "\n" ++ unlines result
 
 
-    context "ghcid" $ beforeAll setUpGhcid $ do
-
-      it "ghcid test 1" $ \g -> do
-        exec g "1+2" `shouldReturn` ["3"]
-
-      it "ghcid test 2" $ \g -> do
-        -- exec g "import GhcidTest"
-        -- exec g ":load test/GhcidTest.hs" >>= print
-        -- exec g ":m + GhcidTest"
-        loadModule' g "GhcidTest"
-        exec g "xxx" `shouldReturn` ["123"]
-        exec g "xxx2" `shouldReturn` ["34"]
-
-      specify "common dependency" $ \g -> do
-        -- pendingWith [qx|
-        --   s
-        --   d
-        -- |]
-
-        T.writeFile "test/Scenarios/CommonDependency.hs" [text|
-          import DI
-
-          aI = 1
-          bI a = a + 2
-          cI a = a + 4
-          dI b c = b + c
-
-          injAllG
-        |]
-        loadModule' g "Scenarios/CommonDependency"
-        execAssert g "$(assemble dD)" (`shouldBeStr` unlines ["8"])
-
-        -- let
-        --   (_, (_, aT), _) = dT
-        --   aA = aT
-
-      specify "common dependency 2" $ \g -> do
-        T.writeFile "test/Scenarios/CommonDependency2.hs" [text|
-          import DI
-
-          xI = 1
-          aI x = x + 1
-          bI a = a + 2
-          cI a = a + 4
-          dI b c = b + c
-
-          injAllG
-        |]
-        loadModule' g "Scenarios/CommonDependency2"
-
-        execAssert g "$(assemble dD)" (`shouldBeStr` unlines ["10"])
-
-        -- failDetails "foobar" $ 1 `shouldBe` 2
-
-        -- 1 `shouldBe` 2
-        --   $> failDetails "foobar"
-        --   $> failDetails "asdasd"
-
-
-      specify "injAllG" $ \g -> do
-        T.writeFile "test/Scenarios/injAll.hs" [text|
-          import DI
-
-          aI = 1
-          bI a = a + 2
-
-          injAllG
-        |]
-        loadModule' g "Scenarios/injAll"
-        execAssert g "$(assemble bD)" (`shouldBeStr` unlines ["3"])
-
-      specify "injAllG out-of-order" $ \g -> do
-        T.writeFile "test/Scenarios/injAll2.hs" [text|
-          import DI
-
-          bI a = a + 2
-          aI = 1
-          cI b = b + 3
-
-          injAllG
-        |]
-        loadModule' g "Scenarios/injAll2"
-        execAssert g "$(assemble cD)" (`shouldBeStr` unlines ["6"])
-
-      -- http://stackoverflow.com/questions/7370073/testing-functions-in-haskell-that-do-io
-      specify "SO" $ \g -> do
-        T.writeFile "test/Scenarios/SO.txt" [qx|abc|]
-        T.writeFile "test/Scenarios/SO.hs" [text|
-          {-# language NoMonomorphismRestriction #-}
-          module Scenarios.SO where
-          import DI
-          injLeaf "readFile"
-
-          -- | 4) Counts the number of characters in a file
-          inj
-          numCharactersInFileA :: FilePath -> IO Int
-          numCharactersInFile readFile = \fileName -> do
-            contents <- readFile fileName
-            return (length contents)
-        |]
-        T.writeFile "test/Scenarios/SOSpec.hs" [text|
-          import DI
-          import Scenarios.SO
-
-          main = do
-            let readFileMock1 _ = return "x"
-            $(assemble
-              $ override "readFile" "readFileMock1"
-              $ numCharactersInFileD) "test/Scenarios/SO.txt"
-              >>= (`shouldBe` 1)
-
-            let readFileMock2 a = return ('x' : a)
-            $(assemble
-              $ override "readFile" "readFileMock2"
-              $ numCharactersInFileD) "test/Scenarios/SO.txt"
-              >>= (`shouldBe` 22)
-
-            $(assemble numCharactersInFileD) "test/Scenarios/SO.txt"
-              >>= (`shouldBe` 3)
-              -- This last assertuion is here to demonstrate that the original
-              -- behavior also works, but naturally we would want to do as
-              -- little IO as possible in unit tests.
-
-          -- assertion function
-          shouldBe = shouldBeF show
-          shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
-                                      | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
-        |]
-        loadModule' g "Scenarios/SOSpec"
-        execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
-
-      Hspec.runIO $ T.writeFile "test/Scenarios/SimpleShouldBe.hs" [text|
-        module Scenarios.SimpleShouldBe where
-
-        -- assertion function
-        shouldBe = shouldBeF show
-        shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
-                                    | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
-      |]
-
-      describe ">>= support" $ do
-        specify "! >>= at most once 1" $ \g -> do
-          pending
-          T.writeFile "test/Scenarios/BindOnce1.hs" [text|
-            module Scenarios.BindOnce1 where
-            import DI
-            injAllG
-
-            aI = return 1
-            bI a = a
-            cI a = a
-            dI b c = b >>= \b -> c >>= \c -> return $ b + c
-            -- dI b c = (+) <$> b <*> c
-          |]
-          T.writeFile "test/Scenarios/BindOnce1Spec.hs" [text|
-            import DI
-            import ComposeLTR
-            import Scenarios.SimpleShouldBe
-            import Scenarios.BindOnce1
-            import Data.IORef
-
-            main = do
-              $(assemble $ dD) >>= (`shouldBe` 2)
-
-              counter <- newIORef 0
-              $(dD
-                $> override "a" "modifyIORef counter (+1) >> return 2"
-                $> assemble) >>= (`shouldBe` 4)
-
-              readIORef counter >>= (`shouldBe` 1)
-          |]
-
-          loadModule' g "Scenarios/BindOnce1Spec"
-          execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
-
-        specify "! >>= at most once 2" $ \g -> do
-          T.writeFile "test/Scenarios/BindOnce2.hs" [text|
-            module Scenarios.BindOnce2 where
-            import DI
-
-            -- injG
-            -- aI = 1
-            injMG
-            aI = return 1
-
-            injG
-            bI a = a
-
-            injG
-            cI a = a
-
-            injMG
-            eI c@b = return $ 2 + c
-
-            injG
-            dI b c e = b + c
-
-          |]
-          T.writeFile "test/Scenarios/BindOnce2Spec.hs" [text|
-            import DI
-            import ComposeLTR
-            import Scenarios.SimpleShouldBe
-            import Scenarios.BindOnce2
-
-            main = do
-              $(assemble $ dD) >>= (`shouldBe` 2)
-
-              -- $(assemble $ dD) >>= (`shouldBe` 2)
-
-              -- counter <- newIORef 0
-              -- $(dD
-              --   $> override "a" "modifyIORef counter (+1) >> return 2"
-              --   $> assemble) >>= (`shouldBe` 4)
-
-              -- readIORef counter >>= (`shouldBe` 1)
-
-          |]
-          loadModule' g "Scenarios/BindOnce2Spec"
-          execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
-
-        specify "dependency for monadic value" $ \g -> do
-          T.writeFile "test/Scenarios/BindOnce3.hs" [text|
-            module Scenarios.BindOnce3 where
-            import DI
-
-            injG
-            aI = 1
-
-            injMG
-            bI a = return $ a + 1
-
-            injG
-            cI b = b
-
-          |]
-          T.writeFile "test/Scenarios/BindOnce3Spec.hs" [text|
-            import DI
-            import ComposeLTR
-            import Scenarios.SimpleShouldBe
-            import Scenarios.BindOnce3
-
-            main = do
-              $(assemble $ cD) >>= (`shouldBe` 2)
-
-          |]
-          loadModule' g "Scenarios/BindOnce3Spec"
-          execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
-
-      -- it ">>= support" $ \g -> do
-      --   -- exec g ":load test/IOScenario.hs" >>= print
-      --   loadModule' g "IOScenario"
-      --   -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines) >>= putStrLn
-      --   -- (exec g "startupTimeStringD" $> fmap unlines) >>= putStrLn
-      --   -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines)
-      --   --   `shouldReturn` unlines ["123"]
-
-      --   (exec g "$(assemble xxxD)") >>= (unlines .> putStrLn)
-
-      --   loadModule' g "IOScenarioMain"
-      --   -- exec g "xxx" >>=  unlines .> putStrLn
-      --   -- exec g "$(assemble xxxD)" >>=  unlines .> putStrLn
-
-      --   -- exec g "1+1+12323" >>= map printForward .> sequence_
-      --   -- print 1
-      --   -- 1 `shouldBe` 2
-      --   -- exec g "import Asd"
-      --   -- exec g ":set -XTemplateHsaskell"
-      --   exec g ":load test/Asd.hs"
-      --   -- exec g "import Asd"
-      --   -- exec g ":t xxxD" `shouldReturn` ["123"]
-      --   exec g "xxx" `shouldReturn` ["123"]
-      --   exec g "xxx2" `shouldReturn` ["34"]
-      --   -- return ()
-      --   -- print 1
-      specify "POC: be able to reuse assemble in identA DecsQ of inj*" $ \g -> do
-        T.writeFile "test/Scenarios/POCAssemble.hs" [text|
-          import DI
-          import Language.Haskell.TH
-          inj
-          a = 1
-        |]
-        loadModule' g "Scenarios/POCAssemble"
-        execAssert g [qx| $(assemble $(varE $ mkName "aD")) |] (`shouldBeStr` "1\n")
-
-      specify ">>= support" $ \g -> do
-        T.writeFile "test/Scenarios/IO.txt" [text|123|]
-        -- T.writeFile "test/Scenarios/IO.hs" [text|
-        --   {-# language NoMonomorphismRestriction #-}
-        --   module Scenarios.IO where
-
-        --   import DI
-        --   import Data.Time
-
-        --   injG
-        --   startupTime :: UTCTime
-        --   startupTimeI = do
-        --     print "startupTime init"
-        --     getCurrentTime
-
-        --   injG
-        --   -- startupTimeString :: String
-        --   startupTimeStringI startupTimeIO = show (startupTime :: UTCTime)
-        -- |]
-
-        T.writeFile "test/Scenarios/IO.hs" [text|
-          {-# language NoMonomorphismRestriction #-}
-          import DI
-
-          injMG
-          configI = do
-            -- print "config init"
-            readFile "test/Scenarios/IO.txt"
-
-          injG
-          fooSetting :: Int
-          fooSettingI config = read config :: Int
-        |]
-        loadModule' g "Scenarios/IO"
-        -- [ab| execAssert g "fooSetting" (`shouldBeStr` "123") |]
-        [ab| execAssert g "$(assemble fooSettingD)" (`shouldBeStr` "123\n") |]
-
-        -- describe "SO 232" $ do
-        --   specify "SO 232" $ \g -> do
-        --     -- 1 `shouldBe` 2
-        --     [ab| 1 `shouldBe` 2 |]
-
-        --   [aa| \_ -> ("1" `shouldBeStr` "2") |]
-
     -- TODO: Handle splices in aa
     -- [aa| $(assemble $ override "foo" "33" barD) `shouldBe` 34 |]
     specify "override with simple expressions" $ do
@@ -745,6 +417,335 @@ specWith setUpGhcid = do
         " a"
       , "a"
       ]) |]
+
+  context "ghcid" $ beforeAll setUpGhcid $ do
+
+    it "ghcid test 1" $ \g -> do
+      exec g "1+2" `shouldReturn` ["3"]
+
+    it "ghcid test 2" $ \g -> do
+      -- exec g "import GhcidTest"
+      -- exec g ":load test/GhcidTest.hs" >>= print
+      -- exec g ":m + GhcidTest"
+      loadModule' g "GhcidTest"
+      exec g "xxx" `shouldReturn` ["123"]
+      exec g "xxx2" `shouldReturn` ["34"]
+
+    specify "common dependency" $ \g -> do
+      -- pendingWith [qx|
+      --   s
+      --   d
+      -- |]
+
+      T.writeFile "test/Scenarios/CommonDependency.hs" [text|
+        import DI
+
+        aI = 1
+        bI a = a + 2
+        cI a = a + 4
+        dI b c = b + c
+
+        injAllG
+      |]
+      loadModule' g "Scenarios/CommonDependency"
+      execAssert g "$(assemble dD)" (`shouldBeStr` unlines ["8"])
+
+      -- let
+      --   (_, (_, aT), _) = dT
+      --   aA = aT
+
+    specify "common dependency 2" $ \g -> do
+      T.writeFile "test/Scenarios/CommonDependency2.hs" [text|
+        import DI
+
+        xI = 1
+        aI x = x + 1
+        bI a = a + 2
+        cI a = a + 4
+        dI b c = b + c
+
+        injAllG
+      |]
+      loadModule' g "Scenarios/CommonDependency2"
+
+      execAssert g "$(assemble dD)" (`shouldBeStr` unlines ["10"])
+
+      -- failDetails "foobar" $ 1 `shouldBe` 2
+
+      -- 1 `shouldBe` 2
+      --   $> failDetails "foobar"
+      --   $> failDetails "asdasd"
+
+
+    specify "injAllG" $ \g -> do
+      T.writeFile "test/Scenarios/injAll.hs" [text|
+        import DI
+
+        aI = 1
+        bI a = a + 2
+
+        injAllG
+      |]
+      loadModule' g "Scenarios/injAll"
+      execAssert g "$(assemble bD)" (`shouldBeStr` unlines ["3"])
+
+    specify "injAllG out-of-order" $ \g -> do
+      T.writeFile "test/Scenarios/injAll2.hs" [text|
+        import DI
+
+        bI a = a + 2
+        aI = 1
+        cI b = b + 3
+
+        injAllG
+      |]
+      loadModule' g "Scenarios/injAll2"
+      execAssert g "$(assemble cD)" (`shouldBeStr` unlines ["6"])
+
+    -- http://stackoverflow.com/questions/7370073/testing-functions-in-haskell-that-do-io
+    specify "SO" $ \g -> do
+      T.writeFile "test/Scenarios/SO.txt" [qx|abc|]
+      T.writeFile "test/Scenarios/SO.hs" [text|
+        {-# language NoMonomorphismRestriction #-}
+        module Scenarios.SO where
+        import DI
+        injLeaf "readFile"
+
+        -- | 4) Counts the number of characters in a file
+        inj
+        numCharactersInFileA :: FilePath -> IO Int
+        numCharactersInFile readFile = \fileName -> do
+          contents <- readFile fileName
+          return (length contents)
+      |]
+      T.writeFile "test/Scenarios/SOSpec.hs" [text|
+        import DI
+        import Scenarios.SO
+
+        main = do
+          let readFileMock1 _ = return "x"
+          $(assemble
+            $ override "readFile" "readFileMock1"
+            $ numCharactersInFileD) "test/Scenarios/SO.txt"
+            >>= (`shouldBe` 1)
+
+          let readFileMock2 a = return ('x' : a)
+          $(assemble
+            $ override "readFile" "readFileMock2"
+            $ numCharactersInFileD) "test/Scenarios/SO.txt"
+            >>= (`shouldBe` 22)
+
+          $(assemble numCharactersInFileD) "test/Scenarios/SO.txt"
+            >>= (`shouldBe` 3)
+            -- This last assertuion is here to demonstrate that the original
+            -- behavior also works, but naturally we would want to do as
+            -- little IO as possible in unit tests.
+
+        -- assertion function
+        shouldBe = shouldBeF show
+        shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
+                                    | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
+      |]
+      loadModule' g "Scenarios/SOSpec"
+      execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+    Hspec.runIO $ T.writeFile "test/Scenarios/SimpleShouldBe.hs" [text|
+      module Scenarios.SimpleShouldBe where
+
+      -- assertion function
+      shouldBe = shouldBeF show
+      shouldBeF f actual expected | actual == expected = putStrLn $ "OK " ++ f actual
+                                  | otherwise          = error $ "FAIL " ++ f actual ++ " /= " ++ f expected
+    |]
+
+    describe ">>= support" $ do
+      specify "! >>= at most once 1" $ \g -> do
+        pending
+        T.writeFile "test/Scenarios/BindOnce1.hs" [text|
+          module Scenarios.BindOnce1 where
+          import DI
+          injAllG
+
+          aI = return 1
+          bI a = a
+          cI a = a
+          dI b c = b >>= \b -> c >>= \c -> return $ b + c
+          -- dI b c = (+) <$> b <*> c
+        |]
+        T.writeFile "test/Scenarios/BindOnce1Spec.hs" [text|
+          import DI
+          import ComposeLTR
+          import Scenarios.SimpleShouldBe
+          import Scenarios.BindOnce1
+          import Data.IORef
+
+          main = do
+            $(assemble $ dD) >>= (`shouldBe` 2)
+
+            counter <- newIORef 0
+            $(dD
+              $> override "a" "modifyIORef counter (+1) >> return 2"
+              $> assemble) >>= (`shouldBe` 4)
+
+            readIORef counter >>= (`shouldBe` 1)
+        |]
+
+        loadModule' g "Scenarios/BindOnce1Spec"
+        execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+      specify "! >>= at most once 2" $ \g -> do
+        T.writeFile "test/Scenarios/BindOnce2.hs" [text|
+          module Scenarios.BindOnce2 where
+          import DI
+
+          -- injG
+          -- aI = 1
+          injMG
+          aI = return 1
+
+          injG
+          bI a = a
+
+          injG
+          cI a = a
+
+          injMG
+          eI c@b = return $ 2 + c
+
+          injG
+          dI b c e = b + c
+
+        |]
+        T.writeFile "test/Scenarios/BindOnce2Spec.hs" [text|
+          import DI
+          import ComposeLTR
+          import Scenarios.SimpleShouldBe
+          import Scenarios.BindOnce2
+
+          main = do
+            $(assemble $ dD) >>= (`shouldBe` 2)
+
+            -- $(assemble $ dD) >>= (`shouldBe` 2)
+
+            -- counter <- newIORef 0
+            -- $(dD
+            --   $> override "a" "modifyIORef counter (+1) >> return 2"
+            --   $> assemble) >>= (`shouldBe` 4)
+
+            -- readIORef counter >>= (`shouldBe` 1)
+
+        |]
+        loadModule' g "Scenarios/BindOnce2Spec"
+        execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+      specify "dependency for monadic value" $ \g -> do
+        T.writeFile "test/Scenarios/BindOnce3.hs" [text|
+          module Scenarios.BindOnce3 where
+          import DI
+
+          injG
+          aI = 1
+
+          injMG
+          bI a = return $ a + 1
+
+          injG
+          cI b = b
+
+        |]
+        T.writeFile "test/Scenarios/BindOnce3Spec.hs" [text|
+          import DI
+          import ComposeLTR
+          import Scenarios.SimpleShouldBe
+          import Scenarios.BindOnce3
+
+          main = do
+            $(assemble $ cD) >>= (`shouldBe` 2)
+
+        |]
+        loadModule' g "Scenarios/BindOnce3Spec"
+        execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+    -- it ">>= support" $ \g -> do
+    --   -- exec g ":load test/IOScenario.hs" >>= print
+    --   loadModule' g "IOScenario"
+    --   -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines) >>= putStrLn
+    --   -- (exec g "startupTimeStringD" $> fmap unlines) >>= putStrLn
+    --   -- (exec g "$(assemble startupTimeStringD)" $> fmap unlines)
+    --   --   `shouldReturn` unlines ["123"]
+
+    --   (exec g "$(assemble xxxD)") >>= (unlines .> putStrLn)
+
+    --   loadModule' g "IOScenarioMain"
+    --   -- exec g "xxx" >>=  unlines .> putStrLn
+    --   -- exec g "$(assemble xxxD)" >>=  unlines .> putStrLn
+
+    --   -- exec g "1+1+12323" >>= map printForward .> sequence_
+    --   -- print 1
+    --   -- 1 `shouldBe` 2
+    --   -- exec g "import Asd"
+    --   -- exec g ":set -XTemplateHsaskell"
+    --   exec g ":load test/Asd.hs"
+    --   -- exec g "import Asd"
+    --   -- exec g ":t xxxD" `shouldReturn` ["123"]
+    --   exec g "xxx" `shouldReturn` ["123"]
+    --   exec g "xxx2" `shouldReturn` ["34"]
+    --   -- return ()
+    --   -- print 1
+    specify "POC: be able to reuse assemble in identA DecsQ of inj*" $ \g -> do
+      T.writeFile "test/Scenarios/POCAssemble.hs" [text|
+        import DI
+        import Language.Haskell.TH
+        inj
+        a = 1
+      |]
+      loadModule' g "Scenarios/POCAssemble"
+      execAssert g [qx| $(assemble $(varE $ mkName "aD")) |] (`shouldBeStr` "1\n")
+
+    specify ">>= support" $ \g -> do
+      T.writeFile "test/Scenarios/IO.txt" [text|123|]
+      -- T.writeFile "test/Scenarios/IO.hs" [text|
+      --   {-# language NoMonomorphismRestriction #-}
+      --   module Scenarios.IO where
+
+      --   import DI
+      --   import Data.Time
+
+      --   injG
+      --   startupTime :: UTCTime
+      --   startupTimeI = do
+      --     print "startupTime init"
+      --     getCurrentTime
+
+      --   injG
+      --   -- startupTimeString :: String
+      --   startupTimeStringI startupTimeIO = show (startupTime :: UTCTime)
+      -- |]
+
+      T.writeFile "test/Scenarios/IO.hs" [text|
+        {-# language NoMonomorphismRestriction #-}
+        import DI
+
+        injMG
+        configI = do
+          -- print "config init"
+          readFile "test/Scenarios/IO.txt"
+
+        injG
+        fooSetting :: Int
+        fooSettingI config = read config :: Int
+      |]
+      loadModule' g "Scenarios/IO"
+      -- [ab| execAssert g "fooSetting" (`shouldBeStr` "123") |]
+      [ab| execAssert g "$(assemble fooSettingD)" (`shouldBeStr` "123\n") |]
+
+      -- describe "SO 232" $ do
+      --   specify "SO 232" $ \g -> do
+      --     -- 1 `shouldBe` 2
+      --     [ab| 1 `shouldBe` 2 |]
+
+      --   [aa| \_ -> ("1" `shouldBeStr` "2") |]
+
 
 loadModule' g modName = do
   result <- exec g $ ":load test/" ++ modName ++ ".hs"
