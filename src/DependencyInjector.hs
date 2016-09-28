@@ -16,6 +16,8 @@ import Language.Haskell.Meta (parseExp)
 import Data.Either
 import System.IO.Unsafe
 import qualified Data.Set as Set
+import qualified Data.Tree as Tree
+import Data.Monoid
 
 assemble :: Deps -> Q Exp
 assemble = convertDepsViaTuple .> return
@@ -24,20 +26,36 @@ assembleSimple :: Deps -> Q Exp
 assembleSimple = convertDepsToExp .> return
 
 convertDepsToExp :: Deps -> Exp
-convertDepsToExp = id
+convertDepsToExp d = d $> id
   .> mapDepNames (parseExp .> either errF id)
   -- .> mapChildren reverse
   .> convertDepsToExp'
+  .> (\exp->
+      if monadicDeps == []
+      then exp
+      else doExpr exp
+    )
   where
     errF = ("Error parsing: " ++) .> error
 
+    monadicDeps = d
+      $> Tree.unfoldTree ((,) <$> id <*> cs)
+      -- $> Tree.unfoldTree (\d@Dep{cs}->(d, cs))
+      $> Tree.flatten
+      $> nub
+      $> filter (kind .> (== Monadic))
+
+    doExpr inside = monadicDeps
+      $> map (\(name -> n)-> BindS (VarP $ mkName n) (VarE (mkName n)))
+      $> (<> [NoBindS (AppE (VarE 'return) $ inside)])
+      $> DoE
 
 convertDepsToExp' :: DepsG Exp -> Exp
 
-convertDepsToExp' d@(Dep{kind=Monadic, cs=[]}) =
-  -- AppE (VarE $ mkName "unsafePerformIO") $ convertDepsToExp' d{kind=Pure}
-  -- error "xxx"
-  convertDepsToExp' $ depOP (VarE $ 'unsafePerformIO) [d{kind=Pure}]
+-- convertDepsToExp' d@(Dep{kind=Monadic, cs=[]}) =
+--   -- AppE (VarE $ mkName "unsafePerformIO") $ convertDepsToExp' d{kind=Pure}
+--   -- error "xxx"
+--   convertDepsToExp' $ depOP (VarE $ 'unsafePerformIO) [d{kind=Pure}]
 
 convertDepsToExp' (getDep -> (_, name,   [])) = name
 

@@ -497,6 +497,7 @@ specWith setUpGhcid = do
 
       describe ">>= support" $ do
         specify "! >>= at most once 1" $ \g -> do
+          pending
           T.writeFile "test/Scenarios/BindOnce1.hs" [text|
             module Scenarios.BindOnce1 where
             import DI
@@ -529,7 +530,7 @@ specWith setUpGhcid = do
           loadModule' g "Scenarios/BindOnce1Spec"
           execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
 
-        specify ">>= at most once 2" $ \g -> do
+        specify "! >>= at most once 2" $ \g -> do
           T.writeFile "test/Scenarios/BindOnce2.hs" [text|
             module Scenarios.BindOnce2 where
             import DI
@@ -553,7 +554,7 @@ specWith setUpGhcid = do
             import Scenarios.BindOnce2
 
             main = do
-              $(assemble $ dD) `shouldBe` 2
+              $(assemble $ dD) >>= (`shouldBe` 2)
 
               -- $(assemble $ dD) >>= (`shouldBe` 2)
 
@@ -602,6 +603,43 @@ specWith setUpGhcid = do
         |]
         loadModule' g "Scenarios/POCAssemble"
         execAssert g [qx| $(assemble $(varE $ mkName "aD")) |] (`shouldBeStr` "1\n")
+
+      specify ">>= support" $ \g -> do
+        T.writeFile "test/Scenarios/IO.txt" [text|123|]
+        -- T.writeFile "test/Scenarios/IO.hs" [text|
+        --   {-# language NoMonomorphismRestriction #-}
+        --   module Scenarios.IO where
+
+        --   import DI
+        --   import Data.Time
+
+        --   injG
+        --   startupTime :: UTCTime
+        --   startupTimeI = do
+        --     print "startupTime init"
+        --     getCurrentTime
+
+        --   injG
+        --   -- startupTimeString :: String
+        --   startupTimeStringI startupTimeIO = show (startupTime :: UTCTime)
+        -- |]
+
+        T.writeFile "test/Scenarios/IO.hs" [text|
+          {-# language NoMonomorphismRestriction #-}
+          import DI
+
+          injMG
+          configI = do
+            -- print "config init"
+            readFile "test/Scenarios/IO.txt"
+
+          injG
+          fooSetting :: Int
+          fooSettingI config = read config :: Int
+        |]
+        loadModule' g "Scenarios/IO"
+        -- [ab| execAssert g "fooSetting" (`shouldBeStr` "123") |]
+        [ab| execAssert g "$(assemble fooSettingD)" (`shouldBeStr` "123\n") |]
 
         -- describe "SO 232" $ do
         --   specify "SO 232" $ \g -> do
