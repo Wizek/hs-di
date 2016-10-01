@@ -1,0 +1,4 @@
+language: Haskell
+ghc: 8
+script:
+  - stack test
