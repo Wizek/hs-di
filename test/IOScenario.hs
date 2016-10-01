@@ -18,11 +18,16 @@ injG
 startupTimeStringBBBI startupTime = show (startupTime :: UTCTime) ++ "-BBB"
 
 injG
-xxxI :: Show a => a
 xxxI
   a @ (InjIO startupTimeString)
   b @ (InjIO startupTimeStringBBB)
+  (InjIO x @ startupTimeStringBBB)
   = a ++ b
+
+
+asdasdI x y = undefined
+
+asdasd2I (Inj x) y = undefined
 -- startupTimeStringIOxxxI startupTime = startupTime >>= show .> return
 
 -- startupTimeString =
