@@ -1,6 +1,12 @@
 language: Haskell
 ghc: 8.0
 
+cache:
+  directories:
+    - $HOME/.ghc
+    - $HOME/.cabal
+    - $HOME/.stack
+
 before_install:
 # Download and unpack the stack executable
 - mkdir -p ~/.local/bin
