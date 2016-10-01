@@ -7,4 +7,4 @@ import Text.InterpolatedString.Perl6  as SpecCommon
 import Language.Haskell.TH.Quote
 import Data.String.Interpolate.Util
 
-qx = QuasiQuoter{quoteExp = unindent .> quoteExp qc}
+-- qx = QuasiQuoter{quoteExp = unindent .> quoteExp qc}

@@ -2,6 +2,8 @@
 {-# language ViewPatterns #-}
 {-# language PatternSynonyms #-}
 {-# language LambdaCase #-}
+{-# language NamedFieldPuns #-}
+{-# language QuasiQuotes #-}
 
 module DependencyInjector (
   module DependencyInjector,
@@ -13,12 +15,14 @@ import Control.Monad
 import Language.Haskell.TH
 import Common
 import Data.List as L
-import Language.Haskell.Meta (parseExp)
+import Language.Haskell.Meta (parseExp, parseDecs)
 import Data.Either
 import System.IO.Unsafe
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 import Data.Monoid
+-- import NeatInterpolation
+-- import qualified Data.Text as T
 
 pattern Inj a = a
 pattern InjIO a = a
@@ -31,10 +35,7 @@ assembleSimple = convertDepsToExp .> return
 
 convertDepsToExp :: Deps -> Exp
 convertDepsToExp d = d $> id
-  .> mapDeps (\case
-    d@Dep{kind=Monadic} -> d{cs = [], name = (name d <> "UnIO")}
-    d -> d
-  )
+  .> unIORename
   .> convertPure
   .> (\exp->
       if monadicDeps == []
@@ -43,21 +44,27 @@ convertDepsToExp d = d $> id
     )
   where
     convertPure = id
+      -- .> (\ d@Dep{cs} -> d{cs=map unIORename cs})
       .> mapDepNames (parseExp .> either errF id)
       -- .> mapChildren reverse
       .> convertDepsToExp'
 
     errF = ("Error parsing: " ++) .> error
-
+    unIORenameOnlyCs = (\ d@Dep{cs} -> d{cs=map unIORename cs})
+    unIORename = mapDeps (\case
+      d@Dep{kind=Monadic} -> d{cs = [], name = (name d <> "UnIO")}
+      d -> d )
     monadicDeps = d
       $> Tree.unfoldTree ((,) <$> id <*> cs)
       $> Tree.flatten
       -- TODO switch to O(n * log n)
       $> nub
       $> filter (kind .> (== Monadic))
+      $> reverse
 
     doExpr inside = monadicDeps
-      $> map (\d@(name -> n)-> BindS (VarP $ mkName (n <> "UnIO")) (convertPure d))
+      $> map (\d@(name -> n) -> BindS (VarP $ mkName (n <> "UnIO"))
+        (convertPure $ unIORenameOnlyCs d))
       $> (<> [NoBindS (AppE (VarE 'return) $ inside)])
       $> DoE
 
@@ -272,19 +279,38 @@ injAllG = do
   getContentOfFile
   >>= lines
   .> groupByIndentation
-  .> filter (concat .> words .> uncons .> maybe False (fst .> ("I" `isSuffixOf`)))
+  .> filter (concat .> words .> uncons .> maybe False (fst .>
+    (("I" `isSuffixOf`) `andf` (not . ("MI" `isSuffixOf`)))))
   .> map (unlines .> parseLineToDepsG .> injDecsG 'Pure)
   .> sequence
   .> fmap concat
 
+injAllM :: Q [Dec]
+injAllM = do
+  getContentOfFile
+  >>= lines
+  .> groupByIndentation
+  .> filter (concat .> words .> uncons .> maybe False (fst .> ("MI" `isSuffixOf`)))
+  .> map (unlines .> parseLineToDepsG .> injDecsG 'Monadic)
+  .> sequence
+  .> fmap concat
+
+injAllMG = do
+  gs <- injAllG
+  ms <- injAllM
+  return $ gs <> ms
+  -- .> map (unlines .> break (== '=') .> fst .> (<> "= ()") .> parseDecs .> fmap ppr) .> map print .> sequence_
+
 -- parseLineToDepsG :: String -> (String, String, [String], [String])
-parseLineToDepsG ls = (name, nameI, nameD, deps, args)
+parseLineToDepsG ls = (name, nameI, nameD, deps, args, argsSigs)
   where
   line = findFirstFnDecLine ls
   ws = words line
   name = nameI $> removeIname
   nameI = head ws
-  args = map (reverse .> takeWhile (/= '@') .> reverse) $ takeWhile (/= "=") $ tail ws
+  -- args = map (reverse .> takeWhile (/= '@') .> reverse) $ takeWhile (/= "=") $ tail ws
+  argsSigs = line $> asdasdas
+  args = argsSigs $> map fst
   nameD = d name
   deps = map d args
   d n = n ++ "D"
@@ -311,34 +337,66 @@ andf f g x = f x && g x
 
 removeIname n = n $> reverse .> f .> reverse
   where
+  f ('I':'M':(a@(_:_))) = a
   f ('I':(a@(_:_))) = a
   f _ = error $ "Name must end with `I` suffix. e.g. `fooI` or `barI`: " ++ n
 
 depOP n ds = Dep n Original Pure ds
 
-injDecsG n (name, nameI, nameD, depsD, deps) =
+injDecsG n (name, nameI, nameD, depsD, deps, argsSigs) = do
+  -- runIO $ print 123123
+
+  -- asd <- [d|
   [d|
-    $identD = $consDep $nameStr Original $(return $ ConE $ n) $listLiteral :: Deps
-    $(return $ VarP $ mkName $ nameT $ name) =
-      $(return $ TupE $ map (mkName .> VarE) ((name ++ "I") : map (++ "T") deps))
-    $(return $ VarP $ mkName $ name ++ "A") =
-      -- -- $(assemble $ depOP nameI (map (flip depOP []) deps))
-      $(return $ convertDepsToExp $ depOP nameI (map (flip depOP []) deps))
-    $(return $ VarP $ mkName $ name) =
-      $(if n == 'Pure
-        then return $ VarE $ mkName $ name ++ "A"
-        else return $ AppE (VarE 'unsafePerformIO) (VarE $ mkName $ name ++ "A")
-        )
-  |]
+      $identD = $asdasd
+      $(return $ VarP $ mkName $ nameT $ name) =
+        $(return $ TupE $ map (mkName .> VarE) ((nameI) : map (++ "T") deps))
+      $(return $ VarP $ mkName $ name ++ "A") =
+        -- assemble $asdasd
+        -- $(assemble $ depOP nameI (map (flip depOP []) deps))
+        $(if anyMonadicImmDeps
+          then [e| monadicInjectError $(litE $ stringL nameD) |]
+          else return $ convertDepsToExp $ depOP nameI (map (flip depOP []) deps))
+      $(return $ VarP $ mkName $ name) =
+        $(if n == 'Pure
+          then return $ VarE $ mkName $ name ++ "A"
+          else return $ AppE (VarE 'unsafePerformIO) (VarE $ mkName $ name ++ "A")
+          )
+    |]
+  -- bar <- [d|
+  --   |]
+  -- print $(mkName $ depsD !! 0)
+  -- return (asd)
+  -- if anyMonadicImmDeps
+  -- then return (asd)
+  -- else return (asd <> bar)
   where
+    anyMonadicImmDeps = argsSigs $> any (snd .> (== Just Monadic))
+    asdasd = [e| $consDep $nameStr Original $(return $ ConE $ n) $listLiteral :: Deps |]
     identD :: Q Pat
     identD = return $ VarP $ mkName nameD
     nameStr :: Q Exp
     nameStr = name $> StringL $> LitE $> return
-    listLiteral :: Q Exp
-    listLiteral = return $ ListE $ map (mkName .> VarE) depsD
     consDep :: Q Exp
     consDep = return $ ConE $ mkName "Dep"
+    listLiteral :: Q Exp
+    listLiteral = return $ ListE $ map f argsSigs
+      where
+      f (n, Just Monadic) = RecUpdE (n $> nf) [('kind, ConE 'Monadic)]
+      f (n, _) = n $> nf
+      nf n = n $> (<> "D") $> mkName .> VarE
+
+-- monadicInjectError :: String
+-- monadicInjectError = [qx|
+monadicInjectError :: String -> a
+monadicInjectError nameD = error $ "\n" <> [qx|
+    At this time it is only supported to inject Monadic values using
+    assemble, e.g. $(assemble {nameD}) mainly due to limitations of
+    TemplateHaskell. If you think you know of a way to overcome this issue
+    please don't hesitate to get in touch with the mainteiners of this
+    package.
+  |]
+  -- where nameD = "asdasdasd"
 
 injP :: Q Pat
 injP = injG >>= transposeDecsToPE .> fst .> return
@@ -351,3 +409,59 @@ transposeDecsToPE decs = (pats, exps)
   where
   pats = TupP $ map (\(ValD p e _) -> p) decs
   exps = TupE $ map (\(ValD p (NormalB e) _) -> e) decs
+
+type InjArgSig = (String, Maybe DepKind)
+type InjFunSig = (String, [InjArgSig])
+
+extractPatInfo :: Pat -> InjArgSig
+extractPatInfo = go
+  where
+  go (VarP x) = (show x, Nothing)
+  go (AsP _ x) = go x
+  go (ParensP x) = go x
+  go (ConP n [x])
+    | n == mkName "Inj" = mapTup id (const $ Just Pure) $ go x
+    | n == mkName "InjIO" = mapTup id (const $ Just Monadic) $ go x
+  go (ConP n [x]) = go x
+  go x = error $ show x
+
+  mapTup f g (a, b) = (f a, g b)
+
+-- asdasdas :: String -> [String]
+asdasdas :: String -> [InjArgSig]
+asdasdas = id
+  .> lines
+  .> groupByIndentation
+  .> filter (concat .> words .>
+    (uncons .> maybe False (fst .> ("I" `isSuffixOf`))
+    `andf` ((!! 1) .> (/= "::"))))
+  .> map (id
+    .> unlines
+    .> break (== '=') .> fst
+    .> (<> "= undefined")
+    .> parseDecs
+    -- .> fmap (map ((,,) <$> f <*> ppr <*> id))
+    .> fromRight
+    .> map f
+    )
+  .> concat
+  .> (!!0)
+  .> snd
+  -- .> map fst
+  -- .> map (\(a, b, c) -> do
+  --   print a
+  --   print b
+  --   print c
+  --   putStrLn "\n")
+  -- .> sequence_
+
+  where
+    f :: Dec -> InjFunSig
+    f (FunD n [(Clause cs _ _)]) =
+      ( show n
+      , map extractPatInfo
+          cs)
+    f (ValD (VarP n) _ _) = (show n, [])
+    f err = error $ show err
+
+fromRight (Right a) = a

@@ -1,3 +1,4 @@
+{-# language ExtendedDefaultRules #-}
 module MainSpec where
 
 import            Test.Hspec as Hspec hiding  (specify, it)
@@ -36,7 +37,10 @@ import Data.String.Interpolate.Util
 import SpecCommon
 import Data.Monoid
 import Text.Regex.TDFA
-import Test.HUnit.Lang (HUnitFailure(..))
+import TestCommon
+import Data.String (IsString)
+import Data.Char as Char
+import qualified Cases
 
 inj
 testIdiomaticImportMock = 44
@@ -174,6 +178,8 @@ specWith setUpGhcid = do
       parseLineToDeps "b = 1" `shouldBe` ("b", "bD", [], [])
       parseLineToDeps "b a = 1" `shouldBe` ("b", "bD", ["aD"], ["a"])
 
+      -- parseLineToDepsG "bI a = 1" `shouldBe` ("b", "bD", ["aD"], ["a"])
+
     [aa| (injectableI (return "asd = 2") $> runQ $> fmap pprint) >>=
       (`shouldSatisfy` ("asdD = Dep \"asd\" Original Pure []" `isPrefixOf`)) |]
 
@@ -235,8 +241,9 @@ specWith setUpGhcid = do
       testIdiomaticModuleA `shouldBe` 23
 
     describe "" $ do
-      let f (n, _, _, _, ds)  = (n, ds)
-      specify "Support for type declaration be in between inj and fn decl" $ do
+      let f (n, _, _, _, ds, _) = (n, ds)
+      let f2 (n, ni, _, _, ds, _) = (n, ni, ds)
+      specify "!!!!!! Support for type declaration be in between inj and fn decl" $ do
 
         ([text|
           aI b = 1
@@ -253,6 +260,11 @@ specWith setUpGhcid = do
           aI :: x => Int
           aI b = 1
         |] $> T.unpack $> parseLineToDepsG $> f) `shouldBe` ("a", ["b"])
+
+        [ab| ("aI b = 1" $> parseLineToDepsG $> f2)`shouldBe` ("a", "aI", ["b"]) |]
+        [ab| ("aMI b = 1" $> parseLineToDepsG $> f2)`shouldBe` ("a", "aMI", ["b"]) |]
+
+        [ab| ("aI (Inj b) = 1" $> parseLineToDepsG $> f)`shouldBe` ("a", ["b"]) |]
 
         a `shouldBe` 1
         b `shouldBe` 2
@@ -354,6 +366,79 @@ specWith setUpGhcid = do
 
     -- specify "override, change deps" $ do
     --   pending
+
+  specify "!! function pattern support" $ do
+    let
+      fr = either error id
+    -- specify "!! simple" $ do
+    -- [ab| 1 `shouldBe` 2 |]
+    -- ([p| x |] $> runQ $> fmap asdasd) `shouldReturn` "x"
+
+    -- let test a b = (a $> parsePat fr .> extractPatInfo .> fst) ==! b
+    let p = parsePat .> fr .> extractPatInfo .> fst
+    [ab| p "a"           ==! "a" |]
+    [ab| p "a@b"         ==! "b" |]
+    [ab| p "a@b@c"       ==! "c" |]
+    [ab| p "(a)"         ==! "a" |]
+    [ab| p "(a@b)"       ==! "b" |]
+    [ab| p "(a@b@c)"     ==! "c" |]
+    -- [ab| p "(a@b)@c"  ==! "c" |]
+
+    -- specify "!! advanced" $ do
+    [ab| p "a@(b@c)"     ==! "c" |]
+    [ab| p "a@(Inj c)"   ==! "c" |]
+    [ab| p "(Inj (a@c))" ==! "c" |]
+    [ab| p "Inj c"       ==! "c" |]
+    [ab| p "Inj a@c"     ==! "c" |]
+    [ab| p "Inj a@b@c"   ==! "c" |]
+    [ab| p "InjIO a"     ==! "a" |]
+
+    -- TODO: Consider explicitly allowing or disallowing this pattern
+    -- specify "!! constructor deconstruction (?)" $ do
+    [ab| p "(InjIO (Just a))"   ==! "a" |] $> experimental
+    [ab| p "(InjIO (Just a@b))" ==! "b" |] $> experimental
+
+
+    let p = parsePat .> fr .> extractPatInfo
+    [ab| p "a"            ==! ("a", Nothing) |]
+    [ab| p "(Inj a)"      ==! ("a", Just Pure) |]
+    [ab| p "(InjIO a)"    ==! ("a", Just Monadic) |]
+
+    [ab| p "(Inj b@a)"    ==! ("a", Just Pure) |]
+    [ab| p "b@(Inj a)"    ==! ("a", Just Pure) |]
+    [ab| p "Just (Inj a)" ==! ("a", Just Pure) |] $> experimental
+    [ab| p "Inj (Just a)" ==! ("a", Just Pure) |] $> experimental
+
+  xspecify "!! function pattern support" $ do
+    let
+      f (FunD n [(Clause cs _ _)]) =
+        ( show n
+        , map extractPatInfo
+            cs)
+      f (ValD (VarP n) _ _) = (show n, [])
+      f err = error $ show err
+
+    readFile "./test/IOScenario.hs"
+      >>= id
+      .> lines
+      .> groupByIndentation
+      .> filter (concat .> words .>
+        (uncons .> maybe False (fst .> ("I" `isSuffixOf`))
+        `andf` ((!! 1) .> (/= "::"))))
+      .> map (id
+        .> unlines
+        .> break (== '=') .> fst
+        .> (<> "= undefined")
+        .> parseDecs
+        .> fmap (map ((,,) <$> f <*> ppr <*> id)))
+      .> map fromRight
+      .> concat
+      .> map (\(a, b, c) -> do
+        print a
+        print b
+        print c
+        putStrLn "\n")
+      .> sequence_
 
   specify "unindent" $ do
     [ab| unindent (unlines [
@@ -526,7 +611,6 @@ specWith setUpGhcid = do
 
     describe ">>= support" $ do
       specify "! >>= at most once 1" $ \g -> do
-        pending
         T.writeFile "test/Scenarios/BindOnce1.hs" [text|
           module Scenarios.BindOnce1 where
           import DI
@@ -535,7 +619,10 @@ specWith setUpGhcid = do
           aI = return 1
           bI a = a
           cI a = a
-          dI b c = b >>= \b -> c >>= \c -> return $ b + c
+          dI b c = do
+            b <- b
+            c <- c
+            return $ b + c
           -- dI b c = (+) <$> b <*> c
         |]
         T.writeFile "test/Scenarios/BindOnce1Spec.hs" [text|
@@ -555,11 +642,12 @@ specWith setUpGhcid = do
 
             readIORef counter >>= (`shouldBe` 1)
         |]
-
         loadModule' g "Scenarios/BindOnce1Spec"
         execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+          $> (const noop)
 
       specify "! >>= at most once 2" $ \g -> do
+        pending
         T.writeFile "test/Scenarios/BindOnce2.hs" [text|
           module Scenarios.BindOnce2 where
           import DI
@@ -576,7 +664,7 @@ specWith setUpGhcid = do
           cI a = a
 
           injMG
-          eI c@b = return $ 2 + c
+          eI b = return $ 2 + b
 
           injG
           dI b c e = b + c
@@ -604,6 +692,36 @@ specWith setUpGhcid = do
         loadModule' g "Scenarios/BindOnce2Spec"
         execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
 
+      let
+        -- ghcidTemplate :: (IsString a, IsString b) =>
+        --   String -> String -> a -> b -> SpecWith Ghci
+        -- ghcidTemplate :: _
+        ghcidTemplate specDesc mainFileContent specFileContent = do
+          specify (specDesc <> ", " <> modName) $ \g -> do
+          -- specify [qc|$specDesc, $modName|] $ \g -> do
+            -- \{-# OPTIONS_GHC -fno-defer-type-errors #-}
+            T.writeFile [qc|test/Scenarios/{modName}.hs|] $ [qx|
+              {"module"} Scenarios.{modName} where
+              import DI
+
+            |] <> mainFileContent
+            --   {mainFileContent}
+            -- |]
+            T.writeFile [qc|test/Scenarios/{modName}Spec.hs|] $ [qx|
+              import DI
+              import ComposeLTR
+              import Scenarios.SimpleShouldBe
+              import Scenarios.{modName}
+
+            |] <> specFileContent
+            --   {specFileContent}
+            -- |]
+            loadModule' g [qc|Scenarios/{modName}Spec|]
+            execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+          where
+          modName = specDesc $> T.pack $> Cases.camelize $> T.unpack
+            $> (\(x:xs)-> Char.toUpper x : xs)
+
       specify "dependency for monadic value" $ \g -> do
         T.writeFile "test/Scenarios/BindOnce3.hs" [text|
           module Scenarios.BindOnce3 where
@@ -630,6 +748,131 @@ specWith setUpGhcid = do
 
         |]
         loadModule' g "Scenarios/BindOnce3Spec"
+        execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+      ghcidTemplate "!!!!! annotate deps" [qx|
+          injAllG
+          aI = 1
+          bI (Inj a) = a + 1
+        |] [qx|
+          main = $(assemble bD) `shouldBe` 2
+        |]
+
+        -- cI (Unwrap b) = b
+        -- cI (UnIO b) = b
+        -- cI (InjIO b) = b
+        -- cI (InjMaybeIO b) = b
+        -- cI (InjMayIO b) = b
+        -- cI (InjM b) = b
+        -- cI (InjMayM b) = b
+
+      ghcidTemplate "!!!!! dependee" [text|
+          injG
+          aI = return 1
+
+          bD = Dep "b" Original Monadic [aD{kind=Monadic}, aD{kind=Pure}]
+          bT = (bI, aT, aT)
+          bI x y = y >>= \y' -> return $ x + 1 + y'
+        |] [qx|
+          main = $(assemble bD) >>= (`shouldBe` 3)
+        |]
+
+      ghcidTemplate "!!!!! dependee 2" [text|
+          injG
+          xI = 1
+
+          injG
+          aI x = return $ 1 + x
+
+          bD = Dep "b" Original Monadic [aD{kind=Monadic}, aD{kind=Pure}]
+          bT = (bI, aT, aT)
+          bI x y = y >>= \y' -> return $ x + 1 + y'
+        |] [qx|
+          main = $(assemble bD) >>= (`shouldBe` 5)
+        |]
+
+      ghcidTemplate "!!!!!! dependee 3" [text|
+          injAllG
+          aI = return 1
+          bI (InjIO a) = a + 1
+        |] [qx|
+          main = $(assemble bD) >>= (`shouldBe` 2)
+        |]
+
+          -- {-# OPTIONS_GHC -fno-deferred-type-errors #-}
+      ghcidTemplate "!!!!!! dependee 4" [text|
+          injAllG
+          monadicI = return 1
+          pureValI = 2
+          fooI (Inj pureVal) = pureVal + 4
+          foo2I (Inj foo) = foo + 8
+
+          barI (InjIO monadic) = monadic + 16
+          bar2I (Inj bar) = bar + 32
+
+          bazI (Inj foo2) (Inj bar2) = foo2 + bar2
+        |] [qx|
+          main = do
+            $(assemble bazD) >>= (`shouldBe` 63)
+            -- bar2 `shouldBe` 47
+        |]
+
+      -- ghcidTemplate "!!!!!! dependee 5" [text|
+      --     injAllG
+      --     monadicI = return 1
+      --     barI (InjIO monadic) = monadic + 16
+      --     bar2I (Inj bar) = bar + 32
+      --   |] [qx|
+      --     main = do
+      --       bar2 `shouldBe` 47
+      --   |]
+
+      specify "!!!! annotate deps" $ \g -> do
+        T.writeFile "test/Scenarios/Bind4.hs" [text|
+          module Scenarios.Bind4 where
+          import DI
+          injAllMG
+
+          aMI = return 1
+          bMI a = return $ a + 1
+          cI b = b
+
+        |]
+        T.writeFile "test/Scenarios/Bind4Spec.hs" [text|
+          import DI
+          import ComposeLTR
+          import Scenarios.SimpleShouldBe
+          import Scenarios.Bind4
+
+          main = do
+            $(assemble $ cD) >>= (`shouldBe` 2)
+
+        |]
+        loadModule' g "Scenarios/Bind4Spec"
+        execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
+
+      let modName = "Bind5"
+      specify ("!!!! Unwrap root dependency, "<>modName) $ \g -> do
+        T.writeFile [qc|test/Scenarios/{modName}.hs|] [qx|
+          module Scenarios.{modName} where
+          import DI
+          injAllMG
+
+          aMI = return 1
+          bMI a = return $ a + 1
+
+        |]
+        T.writeFile [qc|test/Scenarios/{modName}Spec.hs|] [qx|
+          import DI
+          import ComposeLTR
+          import Scenarios.SimpleShouldBe
+          import Scenarios.{modName}
+
+          main = do
+            $(assemble $ bD) >>= (`shouldBe` 2)
+
+        |]
+        loadModule' g [qc|Scenarios/{modName}Spec|]
         execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
 
     -- it ">>= support" $ \g -> do
@@ -721,10 +964,6 @@ loadModule' g modName = do
     then return ()
     else error $ "\n" ++ unlines result
 
--- runOnlyPrefix = ["!"]
--- runOnlyPrefix = ["unindent"]
--- runOnlyPrefix = ["SO"]
-runOnlyPrefix = [""]
 specify a = if (any (`isPrefixOf` a) runOnlyPrefix)
   then Hspec.specify a
   else (\_->return ())
@@ -735,15 +974,11 @@ it a = if (any (`isPrefixOf` a) runOnlyPrefix)
 pd = parseDecs .> fromRight
 pp = parsePat .> fromRight
 pe = parseExp .> fromRight
-fromRight (Right a) = a
+-- fromRight (Right a) = a
 
 
 printForward = (prefix ++) .> putStrLn
 prefix = "  "
-
-noop :: Monad m => m ()
-noop = return ()
-dont _ = noop
 
 xcontext n _ = context n $ it "xcontext" pending
 xit n _ = it n pending
@@ -782,7 +1017,11 @@ setUpGhcidCached = {-Hspec.runIO $-} do
       (newStore g >> return ()) `catch` (\(e :: SomeException) -> print (2, e))
       -- writeIORef ghcid $ Just g
       return g
-    Just s  -> readStore s
+    Just s  -> do
+      g <- readStore s
+      reload g
+      return g
+
   where
   handle = (`catch` f)
   f (e :: SomeException) = do
@@ -837,10 +1076,6 @@ exec' g cmd = do
     f Stderr str = modifyIORef stderrB (<> [str])
   execStream g cmd f
   return (,) <*> readIORef stdoutB <*> readIORef stderrB
-
-failDetails details assert = do
-  assert `catch` \(HUnitFailure loc msg) -> do
-    throw $ HUnitFailure loc $ msg ++ "\n" ++ details
 
 execAssert g cmd assert = exec g cmd
   >>= (\full -> full $> removeInteractive $> unlines $> assert
