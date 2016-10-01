@@ -475,6 +475,21 @@ specWith setUpGhcid = do
       exec g "1+2" `shouldReturn` ["3"]
 
     it "ghcid test 2" $ \g -> do
+      T.writeFile "tmp/GhcidTest2.hs" [text|
+        module GhcidTest2 where
+        asd2val = 33
+      |]
+      T.writeFile "tmp/GhcidTest.hs" [text|
+        module GhcidTest where
+
+        import GhcidTest2
+        import DI
+
+        injG
+        xxxI = 123
+
+        xxx2 = asd2val + 1
+      |]
       -- exec g "import GhcidTest"
       -- exec g ":load test/GhcidTest.hs" >>= print
       -- exec g ":m + GhcidTest"
@@ -488,7 +503,7 @@ specWith setUpGhcid = do
       --   d
       -- |]
 
-      T.writeFile "test/Scenarios/CommonDependency.hs" [text|
+      T.writeFile "tmp/Scenarios/CommonDependency.hs" [text|
         import DI
 
         aI = 1
@@ -506,7 +521,7 @@ specWith setUpGhcid = do
       --   aA = aT
 
     specify "common dependency 2" $ \g -> do
-      T.writeFile "test/Scenarios/CommonDependency2.hs" [text|
+      T.writeFile "tmp/Scenarios/CommonDependency2.hs" [text|
         import DI
 
         xI = 1
@@ -529,7 +544,7 @@ specWith setUpGhcid = do
 
 
     specify "injAllG" $ \g -> do
-      T.writeFile "test/Scenarios/injAll.hs" [text|
+      T.writeFile "tmp/Scenarios/injAll.hs" [text|
         import DI
 
         aI = 1
@@ -541,7 +556,7 @@ specWith setUpGhcid = do
       execAssert g "$(assemble bD)" (`shouldBeStr` unlines ["3"])
 
     specify "injAllG out-of-order" $ \g -> do
-      T.writeFile "test/Scenarios/injAll2.hs" [text|
+      T.writeFile "tmp/Scenarios/injAll2.hs" [text|
         import DI
 
         bI a = a + 2
@@ -555,8 +570,8 @@ specWith setUpGhcid = do
 
     -- http://stackoverflow.com/questions/7370073/testing-functions-in-haskell-that-do-io
     specify "SO" $ \g -> do
-      T.writeFile "test/Scenarios/SO.txt" [qx|abc|]
-      T.writeFile "test/Scenarios/SO.hs" [text|
+      T.writeFile "tmp/Scenarios/SO.txt" [qx|abc|]
+      T.writeFile "tmp/Scenarios/SO.hs" [text|
         {-# language NoMonomorphismRestriction #-}
         module Scenarios.SO where
         import DI
@@ -569,7 +584,8 @@ specWith setUpGhcid = do
           contents <- readFile fileName
           return (length contents)
       |]
-      T.writeFile "test/Scenarios/SOSpec.hs" [text|
+      T.writeFile "tmp/Scenarios/SOSpec.hs" [text|
+        module Scenarios.SOSpec where
         import DI
         import Scenarios.SO
 
@@ -577,16 +593,16 @@ specWith setUpGhcid = do
           let readFileMock1 _ = return "x"
           $(assemble
             $ override "readFile" "readFileMock1"
-            $ numCharactersInFileD) "test/Scenarios/SO.txt"
+            $ numCharactersInFileD) "tmp/Scenarios/SO.txt"
             >>= (`shouldBe` 1)
 
-          let readFileMock2 a = return ('x' : a)
+          let readFileMock2 a =  return ('x' : a)
           $(assemble
             $ override "readFile" "readFileMock2"
-            $ numCharactersInFileD) "test/Scenarios/SO.txt"
-            >>= (`shouldBe` 22)
+            $ numCharactersInFileD) "tmp/Scenarios/SO.txt"
+            >>= (`shouldBe` 21)
 
-          $(assemble numCharactersInFileD) "test/Scenarios/SO.txt"
+          $(assemble numCharactersInFileD) "tmp/Scenarios/SO.txt"
             >>= (`shouldBe` 3)
             -- This last assertuion is here to demonstrate that the original
             -- behavior also works, but naturally we would want to do as
@@ -600,7 +616,7 @@ specWith setUpGhcid = do
       loadModule' g "Scenarios/SOSpec"
       execAssert g "main" (`shouldSatisfy` (lines .> last .> ("OK" `isPrefixOf`)))
 
-    Hspec.runIO $ T.writeFile "test/Scenarios/SimpleShouldBe.hs" [text|
+    Hspec.runIO $ T.writeFile "tmp/Scenarios/SimpleShouldBe.hs" [text|
       module Scenarios.SimpleShouldBe where
 
       -- assertion function
@@ -611,7 +627,7 @@ specWith setUpGhcid = do
 
     describe ">>= support" $ do
       specify "! >>= at most once 1" $ \g -> do
-        T.writeFile "test/Scenarios/BindOnce1.hs" [text|
+        T.writeFile "tmp/Scenarios/BindOnce1.hs" [text|
           module Scenarios.BindOnce1 where
           import DI
           injAllG
@@ -625,7 +641,7 @@ specWith setUpGhcid = do
             return $ b + c
           -- dI b c = (+) <$> b <*> c
         |]
-        T.writeFile "test/Scenarios/BindOnce1Spec.hs" [text|
+        T.writeFile "tmp/Scenarios/BindOnce1Spec.hs" [text|
           import DI
           import ComposeLTR
           import Scenarios.SimpleShouldBe
@@ -648,7 +664,7 @@ specWith setUpGhcid = do
 
       specify "! >>= at most once 2" $ \g -> do
         pending
-        T.writeFile "test/Scenarios/BindOnce2.hs" [text|
+        T.writeFile "tmp/Scenarios/BindOnce2.hs" [text|
           module Scenarios.BindOnce2 where
           import DI
 
@@ -670,7 +686,7 @@ specWith setUpGhcid = do
           dI b c e = b + c
 
         |]
-        T.writeFile "test/Scenarios/BindOnce2Spec.hs" [text|
+        T.writeFile "tmp/Scenarios/BindOnce2Spec.hs" [text|
           import DI
           import ComposeLTR
           import Scenarios.SimpleShouldBe
@@ -700,14 +716,14 @@ specWith setUpGhcid = do
           specify (specDesc <> ", " <> modName) $ \g -> do
           -- specify [qc|$specDesc, $modName|] $ \g -> do
             -- \{-# OPTIONS_GHC -fno-defer-type-errors #-}
-            T.writeFile [qc|test/Scenarios/{modName}.hs|] $ [qx|
+            T.writeFile [qc|tmp/Scenarios/{modName}.hs|] $ [qx|
               {"module"} Scenarios.{modName} where
               import DI
 
             |] <> mainFileContent
             --   {mainFileContent}
             -- |]
-            T.writeFile [qc|test/Scenarios/{modName}Spec.hs|] $ [qx|
+            T.writeFile [qc|tmp/Scenarios/{modName}Spec.hs|] $ [qx|
               import DI
               import ComposeLTR
               import Scenarios.SimpleShouldBe
@@ -723,7 +739,7 @@ specWith setUpGhcid = do
             $> (\(x:xs)-> Char.toUpper x : xs)
 
       specify "dependency for monadic value" $ \g -> do
-        T.writeFile "test/Scenarios/BindOnce3.hs" [text|
+        T.writeFile "tmp/Scenarios/BindOnce3.hs" [text|
           module Scenarios.BindOnce3 where
           import DI
 
@@ -737,7 +753,7 @@ specWith setUpGhcid = do
           cI b = b
 
         |]
-        T.writeFile "test/Scenarios/BindOnce3Spec.hs" [text|
+        T.writeFile "tmp/Scenarios/BindOnce3Spec.hs" [text|
           import DI
           import ComposeLTR
           import Scenarios.SimpleShouldBe
@@ -828,7 +844,7 @@ specWith setUpGhcid = do
       --   |]
 
       specify "!!!! annotate deps" $ \g -> do
-        T.writeFile "test/Scenarios/Bind4.hs" [text|
+        T.writeFile "tmp/Scenarios/Bind4.hs" [text|
           module Scenarios.Bind4 where
           import DI
           injAllMG
@@ -838,7 +854,7 @@ specWith setUpGhcid = do
           cI b = b
 
         |]
-        T.writeFile "test/Scenarios/Bind4Spec.hs" [text|
+        T.writeFile "tmp/Scenarios/Bind4Spec.hs" [text|
           import DI
           import ComposeLTR
           import Scenarios.SimpleShouldBe
@@ -853,7 +869,7 @@ specWith setUpGhcid = do
 
       let modName = "Bind5"
       specify ("!!!! Unwrap root dependency, "<>modName) $ \g -> do
-        T.writeFile [qc|test/Scenarios/{modName}.hs|] [qx|
+        T.writeFile [qc|tmp/Scenarios/{modName}.hs|] [qx|
           module Scenarios.{modName} where
           import DI
           injAllMG
@@ -862,7 +878,7 @@ specWith setUpGhcid = do
           bMI a = return $ a + 1
 
         |]
-        T.writeFile [qc|test/Scenarios/{modName}Spec.hs|] [qx|
+        T.writeFile [qc|tmp/Scenarios/{modName}Spec.hs|] [qx|
           import DI
           import ComposeLTR
           import Scenarios.SimpleShouldBe
@@ -902,7 +918,7 @@ specWith setUpGhcid = do
     --   -- return ()
     --   -- print 1
     specify "POC: be able to reuse assemble in identA DecsQ of inj*" $ \g -> do
-      T.writeFile "test/Scenarios/POCAssemble.hs" [text|
+      T.writeFile "tmp/Scenarios/POCAssemble.hs" [text|
         import DI
         import Language.Haskell.TH
         inj
@@ -912,8 +928,8 @@ specWith setUpGhcid = do
       execAssert g [qx| $(assemble $(varE $ mkName "aD")) |] (`shouldBeStr` "1\n")
 
     specify ">>= support" $ \g -> do
-      T.writeFile "test/Scenarios/IO.txt" [text|123|]
-      -- T.writeFile "test/Scenarios/IO.hs" [text|
+      T.writeFile "tmp/Scenarios/IO.txt" [text|123|]
+      -- T.writeFile "tmp/Scenarios/IO.hs" [text|
       --   {-# language NoMonomorphismRestriction #-}
       --   module Scenarios.IO where
 
@@ -931,14 +947,14 @@ specWith setUpGhcid = do
       --   startupTimeStringI startupTimeIO = show (startupTime :: UTCTime)
       -- |]
 
-      T.writeFile "test/Scenarios/IO.hs" [text|
+      T.writeFile "tmp/Scenarios/IO.hs" [text|
         {-# language NoMonomorphismRestriction #-}
         import DI
 
         injMG
         configI = do
           -- print "config init"
-          readFile "test/Scenarios/IO.txt"
+          readFile "tmp/Scenarios/IO.txt"
 
         injG
         fooSetting :: Int
@@ -957,7 +973,7 @@ specWith setUpGhcid = do
 
 
 loadModule' g modName = do
-  result <- exec g $ ":load test/" ++ modName ++ ".hs"
+  result <- exec g $ ":load tmp/" ++ modName ++ ".hs"
   -- if result $> last $> ("Ok, modules loaded" `isPrefixOf`)
   if result $> any ("Ok, modules loaded" `isPrefixOf`)
     -- then map printForward result $> sequence_
