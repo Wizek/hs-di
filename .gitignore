@@ -26,3 +26,6 @@ cabal.project.local
 # These files are generated on the fly
 test/Scenarios
 tmp/
+
+# backup folders
+.stack-work*/
