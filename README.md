@@ -125,7 +125,7 @@ A couple things to note:
   `let (statement, (sentence, _)) = statementT in statement (sentence nounMock)`  
   (translated from `$(assemble $ override "noun" "nounMock" $ statementD)`)
 
-See more advanced example below.
+See a more advanced example below.
 
 ## To try
 
