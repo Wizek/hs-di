@@ -309,4 +309,33 @@ Alternatively, if one uses a HereDoc such as [`interpolatedstring-perl6`](https:
 $(assemble $ override "noun" [qc|"there"|] $ statementD) `shouldBe` "Hello there!"
 ```
 
+#### Monadic Inject, InjIO
 
+```haskell
+-- Lib.hs
+module Lib where
+
+import DI
+
+injG
+startupTimeI = getCurrentTime
+
+injG
+runI (InjIO startupTime) = do
+  print startupTime
+  print startupTime
+  -- Prints the same startup time twice, only calls getCurrentTime once
+```
+
+```haskell
+-- Main.hs
+import Lib
+import DI
+
+main = do
+  join $(assemble runD)
+  -- `join` is necessary for now, but it is hoped to make it
+  -- not required for a later release.
+```
+
+This is a highly experimental feature. It is intended to be useful in not just testing, but also to make it simpler to deal with monadic dependencies of initializing functions or your whole application. E.g. reading configuration from disk, making a network requests, initializing a random seed without it having to be passed around, etc... All while still enabling the code to behave fully deterministically under testing.
