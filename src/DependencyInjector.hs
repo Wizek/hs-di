@@ -21,6 +21,7 @@ import System.IO.Unsafe
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 import Data.Monoid
+import Data.Maybe
 -- import NeatInterpolation
 -- import qualified Data.Text as T
 
@@ -309,7 +310,7 @@ parseLineToDepsG ls = (name, nameI, nameD, deps, args, argsSigs)
   name = nameI $> removeIname
   nameI = head ws
   -- args = map (reverse .> takeWhile (/= '@') .> reverse) $ takeWhile (/= "=") $ tail ws
-  argsSigs = line $> asdasdas
+  argsSigs = line $> parseInjArgSigs
   args = argsSigs $> map fst
   nameD = d name
   deps = map d args
@@ -350,7 +351,7 @@ injDecsG n (name, nameI, nameD, depsD, deps, argsSigs) = do
   [d|
       $identD = $asdasd
       $(return $ VarP $ mkName $ nameT $ name) =
-        $(return $ TupE $ map (mkName .> VarE) ((nameI) : map (++ "T") deps))
+        $(return $ TupE $ map (mkName .> VarE) ((nameI) : map (++ "T") (filteredSigs $> map fst)))
       $(return $ VarP $ mkName $ name ++ "A") =
         -- assemble $asdasd
         -- $(assemble $ depOP nameI (map (flip depOP []) deps))
@@ -380,11 +381,14 @@ injDecsG n (name, nameI, nameD, depsD, deps, argsSigs) = do
     consDep :: Q Exp
     consDep = return $ ConE $ mkName "Dep"
     listLiteral :: Q Exp
-    listLiteral = return $ ListE $ map f argsSigs
+    listLiteral = return $ ListE $ map f filteredSigs
       where
       f (n, Just Monadic) = RecUpdE (n $> nf) [('kind, ConE 'Monadic)]
       f (n, _) = n $> nf
       nf n = n $> (<> "D") $> mkName .> VarE
+    filteredSigs = if any (snd.>isJust) argsSigs
+      then span (snd.>isJust) argsSigs $> fst
+      else argsSigs
 
 -- monadicInjectError :: String
 -- monadicInjectError = [qx|
@@ -427,9 +431,9 @@ extractPatInfo = go
 
   mapTup f g (a, b) = (f a, g b)
 
--- asdasdas :: String -> [String]
-asdasdas :: String -> [InjArgSig]
-asdasdas = id
+-- parseInjArgSigs :: String -> [String]
+parseInjArgSigs :: String -> [InjArgSig]
+parseInjArgSigs str = str $> id
   .> lines
   .> groupByIndentation
   .> filter (concat .> words .>
@@ -447,6 +451,18 @@ asdasdas = id
   .> concat
   .> (!!0)
   .> snd
+  .> (\xs -> if (map snd xs $> isAnnotationOrderValid)
+      then xs
+      else error $ ""
+        <> "\nAnnotations out of order."
+        <> "\nAll annotated arguments (`(Inj a)`) are required to be listed at the beginning."
+        <> "\n"
+        <> "\nSource:"
+        <> "\n" <> (str $> lines $> map ("  " <>) $> unlines)
+        -- <> "\n"
+        <> "\nParsed as: " <> show xs
+        <> "\n"
+      )
   -- .> map fst
   -- .> map (\(a, b, c) -> do
   --   print a
@@ -464,4 +480,10 @@ asdasdas = id
     f (ValD (VarP n) _ _) = (show n, [])
     f err = error $ show err
 
+
+isAnnotationOrderValid xs = if any isJust noths then False else True
+  where
+  (justs, noths) = span isJust xs
+
 fromRight (Right a) = a
+

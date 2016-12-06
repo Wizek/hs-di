@@ -474,6 +474,29 @@ specWith setUpGhcid = do
       , "a"
       ]) |]
 
+  specify "parseInjArgSigs" $ do
+    [ab| parseInjArgSigs "fooI =" `shouldBe` [] |]
+    [ab| parseInjArgSigs "fooI a =" `shouldBe` [("a", Nothing)] |]
+    [ab| parseInjArgSigs "fooI (Inj b) =" `shouldBe` [("b", Just Pure)] |]
+    [ab| parseInjArgSigs "fooI (Inj b) a =" `shouldBe` [("b", Just Pure), ("a", Nothing)] |]
+    [ab| evaluate (parseInjArgSigs "fooI a (Inj b) =") `shouldThrow` anyException |]
+    -- [ab| (parseInjArgSigs "fooI a (Inj b) =") `shouldBe` [] |]
+
+
+  -- TODO Consider supporting out of order annotations (\x1 x2 x3 -> f x1 x3 x2)
+  specify "annotationOrderCheck" $ do
+    [ab| isAnnotationOrderValid [Just Pure, Nothing] `shouldBe` True |]
+    [ab| isAnnotationOrderValid [Just Pure, Just Pure, Nothing]
+      `shouldBe` True |]
+
+    [ab| isAnnotationOrderValid [Nothing, Just Pure] `shouldBe` False |]
+    [ab| isAnnotationOrderValid [Just Pure, Nothing, Just Pure]
+      `shouldBe` False |]
+    [ab| isAnnotationOrderValid [Nothing, Just Pure, Just Pure]
+      `shouldBe` False |]
+
+
+
   context "ghcid" $ beforeAll setUpGhcid $ do
 
     it "ghcid test 1" $ \g -> do
@@ -777,6 +800,14 @@ specWith setUpGhcid = do
           bI (Inj a) = a + 1
         |] [qx|
           main = $(assemble bD) `shouldBe` 2
+        |]
+
+      ghcidTemplate "!!!!!!! annotate deps mixed" [qx|
+          injAllG
+          aI = 1
+          bI (Inj a) c = a + c
+        |] [qx|
+          main = $(assemble bD) 2 `shouldBe` 3
         |]
 
         -- cI (Unwrap b) = b
