@@ -397,7 +397,7 @@ monadicInjectError nameD = error $ "\n" <> [qx|
     At this time it is only supported to inject Monadic values using
     assemble, e.g. $(assemble {nameD}) mainly due to limitations of
     TemplateHaskell. If you think you know of a way to overcome this issue
-    please don't hesitate to get in touch with the mainteiners of this
+    please don't hesitate to get in touch with the maintainers of this
     package.
   |]
   -- where nameD = "asdasdasd"
