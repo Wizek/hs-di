@@ -357,7 +357,7 @@ injDecsG n (name, nameI, nameD, depsD, deps, argsSigs) = do
         -- $(assemble $ depOP nameI (map (flip depOP []) deps))
         $(if anyMonadicImmDeps
           then [e| monadicInjectError $(litE $ stringL nameD) |]
-          else return $ convertDepsToExp $ depOP nameI (map (flip depOP []) deps))
+          else return $ convertDepsToExp $ depOP nameI (map (flip depOP []) (filteredSigs $> map fst)))
       $(return $ VarP $ mkName $ name) =
         $(if n == 'Pure
           then return $ VarE $ mkName $ name ++ "A"
