@@ -409,6 +409,10 @@ specWith setUpGhcid = do
     [ab| p "Just (Inj a)" ==! ("a", Just Pure) |] $> experimental
     [ab| p "Inj (Just a)" ==! ("a", Just Pure) |] $> experimental
 
+  specify "!! showDepTree" $ do
+    pending
+    [ab| showDepTree "a"           ==! "a" |]
+
   xspecify "!! function pattern support" $ do
     let
       f (FunD n [(Clause cs _ _)]) =
