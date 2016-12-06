@@ -41,6 +41,7 @@ import TestCommon
 import Data.String (IsString)
 import Data.Char as Char
 import qualified Cases
+import Test.Hspec.Core.Runner as Hspec
 
 inj
 testIdiomaticImportMock = 44
