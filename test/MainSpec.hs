@@ -804,10 +804,15 @@ specWith setUpGhcid = do
 
       ghcidTemplate "!!!!!!! annotate deps mixed" [qx|
           injAllG
+
           aI = 1
-          bI (Inj a) c = a + c
+          b1I (Inj a) c = a + c
+          b2I a = a
+          -- b3I c (Inj a) = a + c
         |] [qx|
-          main = $(assemble bD) 2 `shouldBe` 3
+          main = do
+            $(assemble b1D) 2 `shouldBe` 3
+            $(assemble b2D) `shouldBe` 1
         |]
 
         -- cI (Unwrap b) = b
