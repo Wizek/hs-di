@@ -503,14 +503,14 @@ specWith setUpGhcid = do
       exec g "1+2" `shouldReturn` ["3"]
 
     it "ghcid test 2" $ \g -> do
-      T.writeFile "tmp/GhcidTest2.hs" [text|
-        module GhcidTest2 where
+      T.writeFile "tmp/Scenarios/GhcidTest2.hs" [text|
+        module Scenarios.GhcidTest2 where
         asd2val = 33
       |]
-      T.writeFile "tmp/GhcidTest.hs" [text|
-        module GhcidTest where
+      T.writeFile "tmp/Scenarios/GhcidTest.hs" [text|
+        module Scenarios.GhcidTest where
 
-        import GhcidTest2
+        import Scenarios.GhcidTest2
         import DI
 
         injG
@@ -521,7 +521,7 @@ specWith setUpGhcid = do
       -- exec g "import GhcidTest"
       -- exec g ":load test/GhcidTest.hs" >>= print
       -- exec g ":m + GhcidTest"
-      loadModule' g "GhcidTest"
+      loadModule' g "Scenarios/GhcidTest"
       exec g "xxx" `shouldReturn` ["123"]
       exec g "xxx2" `shouldReturn` ["34"]
 

@@ -24,8 +24,9 @@ cabal.project.local
 *.iml
 
 # These files are generated on the fly
-test/Scenarios
-tmp/
+# test/Scenarios
+# tmp/*
+# !tmp/Scenarios/.gitignore
 
 # backup folders
 .stack-work*/
