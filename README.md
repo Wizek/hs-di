@@ -1,6 +1,10 @@
-# Haskell Dependency Injection [![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat-square)](https://hackage.haskell.org/package/hs-di)
+# Haskell Dependency Injection
 
-A promising Dependency Injection system for Haskell.
+_A promising Dependency Injection system for Haskell._
+
+[![License](https://img.shields.io/github/license/Wizek/hs-di.svg?style=flat-square)](https://github.com/Wizek/hs-di/blob/master/LICENSE)
+[![Build Status](https://img.shields.io/travis/Wizek/hs-di.svg?style=flat-square)](https://travis-ci.org/Wizek/hs-di)
+[![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat-square)](https://hackage.haskell.org/package/hs-di)
 
 # Why
 
