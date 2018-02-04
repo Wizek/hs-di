@@ -1,6 +1,10 @@
-# Haskell Dependency Injection [![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat-square)](https://hackage.haskell.org/package/hs-di)
+# Haskell Dependency Injection
 
-A promising Dependency Injection system for Haskell.
+_A promising Dependency Injection system for Haskell._
+
+[![License](https://img.shields.io/github/license/Wizek/hs-di.svg?style=flat-square)](https://github.com/Wizek/hs-di/blob/master/LICENSE)
+[![Build Status](https://img.shields.io/travis/Wizek/hs-di.svg?style=flat-square)](https://travis-ci.org/Wizek/hs-di)
+[![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat-square)](https://hackage.haskell.org/package/hs-di)
 
 # Why
 
@@ -42,7 +46,7 @@ import DI
 import Lib
 
 inj
-nounMock = "Dear Reader" 
+nounMock = "Dear Reader"
 
 main = do
   $(assemble statementD) `shouldBe` "Hello World!"
@@ -116,13 +120,13 @@ Spec.hs:12:5-54: Splicing expression
 
 A couple things to note:
 
-- You may be wondering what the suffix letters mean in the declarations.  
-  You don't have to concern yourself with them, it's part of the internal hidden API of the DI framework by design.  
-  (If you are curious however, they stand for "Dependency definitions/`Deps`", "Tuple", "Assembled", and "Injectable", respectively.)  
-- As you can see, at the end of the day, all this machinery achieves pretty much the same what a developer would do by hand: `statement (sentence noun)`  
-  The beauty, however, is that this doesn't have to be done by hand, as it would become immensely tedious and time-consuming as soon as we start to handle more than a couple dependencies.  
-- Mocking is equally elegant:  
-  `let (statement, (sentence, _)) = statementT in statement (sentence nounMock)`  
+- You may be wondering what the suffix letters mean in the declarations.
+  You don't have to concern yourself with them, it's part of the internal hidden API of the DI framework by design.
+  (If you are curious however, they stand for "Dependency definitions/`Deps`", "Tuple", "Assembled", and "Injectable", respectively.)
+- As you can see, at the end of the day, all this machinery achieves pretty much the same what a developer would do by hand: `statement (sentence noun)`
+  The beauty, however, is that this doesn't have to be done by hand, as it would become immensely tedious and time-consuming as soon as we start to handle more than a couple dependencies.
+- Mocking is equally elegant:
+  `let (statement, (sentence, _)) = statementT in statement (sentence nounMock)`
   (translated from `$(assemble $ override "noun" "nounMock" $ statementD)`)
 
 See a more advanced example below.
@@ -156,7 +160,7 @@ makeTimer putStrLn getCurrentTime = liftIO $ do
       Just a  -> putStrLn $ show time ++ ", diff: " ++ (show $ diffUTCTime time a)
 ```
 
-*(source: https://github.com/Wizek/hs-di/blob/v0.2.1/test/NotSoEasyToTestCode.hs#L17-L26)* 
+*(source: https://github.com/Wizek/hs-di/blob/v0.2.1/test/NotSoEasyToTestCode.hs#L17-L26)*
 
 ```haskell
 mockConsole <- newIORef []
@@ -193,12 +197,12 @@ readMockConsole `shouldReturn`
   - `(+)` Supports type variables
   - `(+)` Theoretically also supports surgically only overriding some subsets of dependencies
   - `(+)` Emulates how a human would do DI by hand, and does the hard work automatically
-  - `(+)` Modules are fully supported as of `v0.3+` 
+  - `(+)` Modules are fully supported as of `v0.3+`
   - `(?)` How is compile/startup performance impacted? Does GHC notice `f (g x) (g x)`?
 
 ### Inspirations
 
-This package was initially inspired by the Dependency Injection framework of AngularJS (1.x).  
+This package was initially inspired by the Dependency Injection framework of AngularJS (1.x).
 Additional inspiration came when I was looking for ways to make DI work in a statically typed language at compile time, and found out about Dagger (Java).
 
 ### Todo checklist
@@ -210,7 +214,7 @@ Additional inspiration came when I was looking for ways to make DI work in a sta
 - [x] `v0.2+` Write quasi quoter or TH splicer that writes the `Deps` definitions too
 - [x] `v0.2+` look for a way to have full module support (without having to explicitly re-export and risk name-clashes)
 - [x] `v0.3+` Support function headers that are not immediately below
-    - [ ] Consider using haskell-source-meta to extract parameter info 
+    - [ ] Consider using haskell-source-meta to extract parameter info
 - [x] `v0.3+` work around "variable not in scope" error by collecting all declarations in a splice at the end of the file
 - [x] `v0.3+` Allow single dependency more than once
 - [ ] have GHC support Dec TH splices in let bindings: https://ghc.haskell.org/trac/ghc/ticket/9880#comment:7
