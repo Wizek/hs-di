@@ -2,9 +2,10 @@
 
 _A promising Dependency Injection system for Haskell._
 
-[![License](https://img.shields.io/github/license/Wizek/hs-di.svg?style=flat-square)](https://github.com/Wizek/hs-di/blob/master/LICENSE)
-[![Build Status](https://img.shields.io/travis/Wizek/hs-di.svg?style=flat-square)](https://travis-ci.org/Wizek/hs-di)
-[![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat-square)](https://hackage.haskell.org/package/hs-di)
+[![Chat on Gitter](https://badges.gitter.im/Wizek/hs-di.svg)](https://gitter.im/hs-di/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)
+[![Build Status](https://img.shields.io/travis/Wizek/hs-di.svg?style=flat)](https://travis-ci.org/Wizek/hs-di)
+[![License](https://img.shields.io/github/license/Wizek/hs-di.svg?style=flat)](https://github.com/Wizek/hs-di/blob/master/LICENSE)
+[![Hackage](https://img.shields.io/hackage/v/hs-di.svg?style=flat)](https://hackage.haskell.org/package/hs-di)
 
 # Why
 
