@@ -144,7 +144,7 @@ stack test
 
 You may also experiment with modifying the files in `hs-di/examples/simple` then re-running `stack test` to get an intuitive understanding of how this library works.
 
-## More advanced example
+#### More advanced example
 
 While the following code may not be the most elegant or useful, it at least shows the power of dependency injection when it comes to mocking and testing IO code that deals with `putStrLn` and `getCurrentTime` in a fully deterministic way.
 
@@ -188,6 +188,10 @@ readMockConsole `shouldReturn`
 ```
 
 *(source: https://github.com/Wizek/hs-di/blob/9fd5e4/test/MainSpec.hs#L135-L156)*
+
+#### Even more advanced example: [hs-di-example][hde] (also a comparison to mtl)
+
+  [hde]: https://github.com/Wizek/hs-di-example
 
 ### Pros and cons of this approach
 
