@@ -16,7 +16,7 @@ import Language.Haskell.TH
 import Common
 import Data.List as L
 import Language.Haskell.Meta (parseExp, parseDecs)
-import Data.Either
+import Data.Either hiding (fromRight)
 import System.IO.Unsafe
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
