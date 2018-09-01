@@ -354,7 +354,7 @@ injDecsG n (name, nameI, nameD, depsD, deps, argsSigs) = do
         $(return $ TupE $ map (mkName .> VarE) ((nameI) : map (++ "T") (filteredSigs $> map fst)))
       $(return $ VarP $ mkName $ name ++ "A") =
         -- assemble $asdasd
-        -- $(assemble $ depOP nameI (map (flip depOP []) deps))
+        -- -- $(assemble $ depOP nameI (map (flip depOP []) deps))
         $(if anyMonadicImmDeps
           then [e| monadicInjectError $(litE $ stringL nameD) |]
           else return $ convertDepsToExp $ depOP nameI (map (flip depOP []) (filteredSigs $> map fst)))
